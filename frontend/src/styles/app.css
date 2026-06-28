@@ -1,0 +1,936 @@
+/* ============================================================
+   HydroFlow — Swimming Training App
+   Design: "water-like" — smooth, clean, minimalist
+   ============================================================ */
+
+/* ----------------------------------------------------------
+   1. CSS Variables / Theme
+   ---------------------------------------------------------- */
+:root {
+  --bg: #0a0e17;
+  --bg-card: #111827;
+  --bg-surface: #1f2937;
+  --accent: #22d3ee;
+  --accent-glow: rgba(34, 211, 238, 0.15);
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --radius: 16px;
+  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ----------------------------------------------------------
+   2. Reset & Base
+   ---------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+a { color: var(--accent); text-decoration: none; }
+button { font-family: inherit; cursor: pointer; border: none; }
+img { max-width: 100%; display: block; }
+
+/* ----------------------------------------------------------
+   3. Layout
+   ---------------------------------------------------------- */
+.app-container {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 16px 16px 96px;
+  position: relative;
+}
+
+.screen {
+  animation: fadeInUp 0.4s var(--transition) both;
+}
+
+/* ----------------------------------------------------------
+   4. Bottom Tab Navigation
+   ---------------------------------------------------------- */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 10px 8px calc(env(safe-area-inset-bottom, 8px) + 10px);
+  background: rgba(17, 24, 39, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(34, 211, 238, 0.08);
+  z-index: 100;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 4px 12px;
+  border-radius: 12px;
+  transition: color var(--transition), background var(--transition);
+}
+
+.nav-item .nav-icon {
+  font-size: 22px;
+  transition: transform var(--transition);
+}
+
+.nav-item.active {
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.nav-item.active .nav-icon {
+  transform: scale(1.1);
+}
+
+/* ----------------------------------------------------------
+   5. Dashboard — "Зеркало воды"
+   ---------------------------------------------------------- */
+.dashboard-hero {
+  position: relative;
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  background: linear-gradient(135deg, #0e2a47 0%, #0c1e35 50%, #0a1628 100%);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.dashboard-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 120% 60% at 30% 80%, rgba(34, 211, 238, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 40% at 70% 20%, rgba(34, 211, 238, 0.06) 0%, transparent 50%);
+  animation: ripple 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.dashboard-hero h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  position: relative;
+}
+
+.dashboard-hero p {
+  color: var(--text-muted);
+  font-size: 14px;
+  position: relative;
+}
+
+.today-card {
+  background: rgba(17, 24, 39, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(34, 211, 238, 0.08);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.today-card .label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.today-card .focus {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.start-dive-btn {
+  width: 100%;
+  padding: 18px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 24px rgba(34, 211, 238, 0.3);
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.start-dive-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 40px rgba(34, 211, 238, 0.45);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.start-dive-btn:active {
+  transform: scale(0.97);
+}
+
+.stats-row {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 0 12px;
+  margin: 0 -4px;
+}
+
+.stats-row::-webkit-scrollbar { display: none; }
+
+.stat-bubble {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  min-width: 110px;
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-bubble .value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.stat-bubble .unit {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ----------------------------------------------------------
+   6. Drill Cards
+   ---------------------------------------------------------- */
+.drill-card {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius);
+  padding: 16px 16px 16px 24px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.drill-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 4px 0 0 4px;
+  background: var(--accent);
+}
+
+.drill-card.warmup::before  { background: var(--warning); }
+.drill-card.technique::before { background: var(--accent); }
+.drill-card.strength::before  { background: var(--danger); }
+.drill-card.cooldown::before  { background: var(--success); }
+
+.drill-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.drill-card.warmup:hover  { box-shadow: 0 8px 24px rgba(251, 191, 36, 0.1); }
+.drill-card.technique:hover { box-shadow: 0 8px 24px rgba(34, 211, 238, 0.1); }
+.drill-card.strength:hover  { box-shadow: 0 8px 24px rgba(248, 113, 113, 0.1); }
+.drill-card.cooldown:hover  { box-shadow: 0 8px 24px rgba(52, 211, 153, 0.1); }
+
+.drill-card .drill-name {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.drill-card .drill-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ----------------------------------------------------------
+   7. YouTube Video Overlay
+   ---------------------------------------------------------- */
+.video-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeInUp 0.25s ease-out;
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  padding: 0 16px;
+}
+
+.video-container .video-wrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 */
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+}
+
+.video-container .video-wrapper iframe,
+.video-container .video-wrapper video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.video-close-btn {
+  position: absolute;
+  top: -48px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition);
+}
+
+.video-close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ----------------------------------------------------------
+   8. Workout Player — "Поток"
+   ---------------------------------------------------------- */
+.workout-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0 20px;
+}
+
+.workout-header .workout-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.progress-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.progress-dots .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  transition: background var(--transition), transform var(--transition);
+}
+
+.progress-dots .dot.done {
+  background: var(--accent);
+}
+
+.progress-dots .dot.active {
+  background: var(--accent);
+  transform: scale(1.3);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.set-card {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 10px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.set-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+.set-card .set-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.set-card .set-detail {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.set-progress {
+  width: 100%;
+  height: 3px;
+  background: var(--bg-surface);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.set-progress .fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--success));
+  border-radius: 3px;
+  transition: width var(--transition);
+}
+
+/* ----------------------------------------------------------
+   9. Water Mode — "Вода"
+   ---------------------------------------------------------- */
+.water-mode {
+  background: #000;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  user-select: none;
+}
+
+.water-timer {
+  font-size: clamp(60px, 15vw, 120px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  text-shadow: 0 0 40px rgba(34, 211, 238, 0.3);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.water-timer.resting {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+.water-distance {
+  font-size: clamp(28px, 8vw, 48px);
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 8px;
+  opacity: 0.9;
+}
+
+.water-distance .unit {
+  font-size: 0.5em;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.water-controls {
+  display: flex;
+  gap: 20px;
+  margin-top: 40px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.water-controls button {
+  flex: 1;
+  min-height: 64px;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 700;
+  transition: transform var(--transition), background var(--transition);
+}
+
+.water-controls button:active {
+  transform: scale(0.95);
+}
+
+.water-controls .btn-next {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.water-controls .btn-pause {
+  background: var(--bg-surface);
+  color: var(--text);
+}
+
+.water-swipe-hint {
+  margin-top: 32px;
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+/* ----------------------------------------------------------
+   10. Mastery / Progress
+   ---------------------------------------------------------- */
+.mastery-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-surface);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mastery-bar .fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--accent), var(--success));
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mastery-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--accent);
+  background: var(--accent-glow);
+  border: 2px solid rgba(34, 211, 238, 0.25);
+  flex-shrink: 0;
+}
+
+.mastery-card {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.mastery-card .info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mastery-card .drill-name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ----------------------------------------------------------
+   11. Workout Constructor
+   ---------------------------------------------------------- */
+.constructor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.constructor-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.constructor-item .drag-handle {
+  width: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: grab;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.constructor-item .drag-handle span {
+  display: block;
+  width: 14px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+}
+
+.constructor-item .item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.constructor-item .item-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.constructor-item .item-detail {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.add-drill-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  border: 2px dashed rgba(148, 163, 184, 0.2);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  transition: border-color var(--transition), color var(--transition);
+}
+
+.add-drill-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ----------------------------------------------------------
+   12. Animations
+   ---------------------------------------------------------- */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 24px rgba(34, 211, 238, 0.3); }
+  50%      { box-shadow: 0 0 48px rgba(34, 211, 238, 0.5); }
+}
+
+@keyframes ripple {
+  0%   { transform: scale(1)   rotate(0deg);   opacity: 1; }
+  50%  { transform: scale(1.05) rotate(1deg);  opacity: 0.8; }
+  100% { transform: scale(1)   rotate(0deg);   opacity: 1; }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes breathe {
+  0%, 100% {
+    opacity: 1;
+    text-shadow: 0 0 40px rgba(34, 211, 238, 0.3);
+  }
+  50% {
+    opacity: 0.6;
+    text-shadow: 0 0 60px rgba(34, 211, 238, 0.5);
+  }
+}
+
+/* ----------------------------------------------------------
+   13. Responsive — 320px-480px
+   ---------------------------------------------------------- */
+@media (max-width: 360px) {
+  .app-container {
+    padding: 12px 12px 88px;
+  }
+
+  .dashboard-hero {
+    padding: 20px 16px;
+  }
+
+  .dashboard-hero h1 {
+    font-size: 20px;
+  }
+
+  .stat-bubble {
+    min-width: 96px;
+    padding: 12px;
+  }
+
+  .stat-bubble .value {
+    font-size: 18px;
+  }
+
+  .water-controls {
+    gap: 12px;
+  }
+
+  .water-controls button {
+    font-size: 14px;
+  }
+
+  .mastery-badge {
+    width: 44px;
+    height: 44px;
+    font-size: 12px;
+  }
+}
+
+@media (min-width: 481px) {
+  .app-container {
+    padding: 24px 24px 96px;
+  }
+}
+
+/* ----------------------------------------------------------
+   14. Custom Scrollbar
+   ---------------------------------------------------------- */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.3);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.15) transparent;
+}
+
+/* ----------------------------------------------------------
+   Utilities
+   ---------------------------------------------------------- */
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.spacer-sm { height: 12px; }
+.spacer-md { height: 20px; }
+.spacer-lg { height: 32px; }
+
+.text-accent { color: var(--accent); }
+.text-muted  { color: var(--text-muted); }
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.text-danger  { color: var(--danger); }
+
+.glass {
+  background: rgba(17, 24, 39, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(34, 211, 238, 0.08);
+}
+
+/* ----------------------------------------------------------
+   15. Workout List — Catalog
+   ---------------------------------------------------------- */
+.workout-list {
+  animation: fadeInUp 0.4s var(--transition) both;
+}
+
+.workout-list-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.level-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 16px;
+  margin-bottom: 8px;
+}
+
+.level-tabs::-webkit-scrollbar { display: none; }
+
+.level-tab {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background var(--transition), color var(--transition),
+    border-color var(--transition);
+  white-space: nowrap;
+}
+
+.level-tab:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.level-tab.active {
+  background: var(--accent-glow);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.workout-list-loading,
+.workout-list-empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.workout-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.workout-card {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius);
+  padding: 20px;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.workout-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.workout-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.workout-card-name {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.level-badge {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.workout-card-focus {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.workout-card-description {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.workout-card-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.workout-stat {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.01em;
+}
+
+.workout-start-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.workout-start-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 24px rgba(34, 211, 238, 0.3);
+}
+
+.workout-start-btn:active {
+  transform: scale(0.97);
+}
