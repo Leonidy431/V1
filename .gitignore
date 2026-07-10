@@ -13,3 +13,10 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Firebase / Светопись Домов
+functions/node_modules
+firebase-debug.log
+firebase-debug.*.log
+.firebase/
+web/js/firebase-config.js
