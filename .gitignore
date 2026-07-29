@@ -30,3 +30,6 @@ dist
 
 # Admin panel auth (generated at build time)
 public/admin/auth.json
+.astro/dev.json
+.astro/dev.log
+.astro/settings.json
