@@ -1,33 +1,46 @@
 # Светопись Домов
 
-Интерактивный генератор живописных миров: 12-значное seed-число разбирается
-по одной цифре на 12 астрологических Домов (строго по порядку), каждая цифра
-задаёт Тему (архетип сюжета), а Дом — пространственную зону на холсте. Фронтенд
-проявляет картину слоями в манере масляной лессировочной живописи; бекенд на
-Firebase генерирует и хранит seed'ы и разборы картин.
+Интерактивный генератор живописных миров: 12-значное seed-число разбирается по одной цифре на 12 астрологических Домов (строго по порядку), каждая цифра задаёт Тему (архетип сюжета), а Дом — пространственную зону на холсте. Фронтенд проявляет картину слоями в манере масляной лессировочной живописи; GitHub API-driven CMS для управления галереей картин.
 
 ## Структура репозитория
 
 ```
-functions/                 Firebase Cloud Functions (бекенд)
-  houses.js                 Семантическая матрица Дом↔Тема (канонический источник)
-  index.js                  generateSeed / parseSeed / savePainting / listPaintings
-  package.json
+src/                            Astro project source
+  layouts/                      Layout компоненты
+    BaseLayout.astro            Основной layout
+  pages/                        Astro страницы
+    index.astro                 Главная страница
+  content/                      Markdown content
+    presets/                    Сохранённые seed-картины
+  styles/                       CSS стили
+    style.css                   Общие стили
+  lib/                          JS библиотеки (копируются в public/)
+    houses.js                   Семантическая матрица Дом↔Тема
+    app.js                      Главный скрипт приложения
+    oilEngine.js                Canvas-движок имитации масляной живописи
+    audio.js                    Синтез звука мазка кисти
 
-web/                        Статический фронтенд (Firebase Hosting)
-  index.html
-  css/style.css
-  js/houses.js               Копия семантической матрицы для браузера
-  js/oilEngine.js            Canvas-движок имитации масляной живописи
-  js/audio.js                Синтез звука мазка кисти (Web Audio, без сэмплов)
-  js/firebase-client.js      Необязательная интеграция с бекендом
-  js/firebase-config.example.js
+public/                         Статические активы (публикуются как есть)
+  lib/                          JS файлы (копируются из src/lib)
+  admin/
+    index.html                  GitHub API-driven CMS админ-панель
 
-firebase.json, firestore.rules, firestore.indexes.json
+.github/workflows/
+  deploy.yml                    CI/CD для GitHub Pages
+
+astro.config.mjs                Конфигурация Astro (base: /v1)
+package.json                    Зависимости (Astro)
+tsconfig.json                   TypeScript конфиг
 ```
 
-Каталог `app/` (Android-заготовка «VK TEST 2») и одноимённый архив в корне —
-наследие предыдущего шаблона, не относятся к этому модулю и не изменялись.
+Каталог `functions/`, `app/` и старые `web/` файлы оставлены для справки.
+
+## Технический стек
+
+- **Фронтенд**: Astro v7 (статический сайт, развёртывается на GitHub Pages)
+- **Canvas движок**: Canvas 2D с детерминированной рендеризацией (тот же seed → одна картина)
+- **CMS**: Админ-панель на HTML+vanilla JS, интегрируется с GitHub API для CRUD Markdown файлов
+- **Развёртывание**: GitHub Actions → GitHub Pages
 
 ## Семантическая матрица
 
@@ -43,58 +56,49 @@ firebase.json, firestore.rules, firestore.indexes.json
 | 6–7 | Испытание / Металл / Трансформация | Кристаллические структуры, изломы, тени |
 | 8–9 | Высший Порядок / Архитектура духа | Готические своды в люминесцентных облаках |
 
-Дома и их пространственные зоны на холсте (`box` в нормализованных
-координатах 0..1) заданы в `functions/houses.js` / `web/js/houses.js` — при
-изменении семантики оба файла нужно обновлять синхронно, единый бандлер между
-Cloud Functions и статическим хостингом сейчас не используется.
+Дома и их пространственные зоны на холсте (`box` в нормализованных координатах 0..1) заданы в `src/lib/houses.js`.
 
-## Фронтенд: движок живописи (`web/js/oilEngine.js`)
+## Фронтенд: движок живописи (`src/lib/oilEngine.js`)
 
 - **Имприматура** — тонированная основа (охра/умбра) + тканая текстура холста,
   фиксируется в оффскрин-буфере `base`.
 - **Мазок Дома** — для каждого шага: мягкое проявление геометрии зоны Дома →
   детерминированный (seed от шага и цифры, `mulberry32`) план фигур темы →
   подмалёвок (`multiply`, тёмный тон) → лессировки (`multiply`, средний тон) →
-  блики (`screen`, светлый тон). Каждый кадр анимации перерисовывается поверх
-  зафиксированного `base`, а не накапливается — это гарантирует, что итоговая
-  картина воспроизводима для одного и того же seed независимо от FPS.
+  блики (`screen`, светлый тон).
 - **Лакирование** — финальный soft-light/vignette проход, затем CSS
   `craquelure-overlay` (SVG `feTurbulence`) поверх холста.
-- Холст держит пропорцию золотого сечения 1.618:1 через CSS `aspect-ratio`.
 
-## Бекенд: Firebase (`functions/`)
+## CMS: админ-панель (`public/admin/index.html`)
 
-Callable-функции (`firebase-functions` v2 `onCall`):
+Полнофункциональная админ-панель для управления галереей картин:
 
-- `generateSeed()` — криптографически случайный 12-значный seed + разбор.
-- `parseSeed({ seed })` — разбор произвольного seed без сохранения.
-- `savePainting({ seed })` — требует авторизации (в т.ч. анонимной), сохраняет
-  `{ uid, seed, houses, createdAt }` в `paintings/{id}`; разбор всегда
-  пересчитывается на сервере, клиентский вариант игнорируется.
-- `listPaintings()` — последние 50 картин текущего пользователя.
+- **Аутентификация**: GitHub PAT с fine-grained правами `Contents: Read and write`
+- **CRUD**: Создание, редактирование, удаление seed-картин в Markdown
+- **Автопубликация**: После сохранения запускается GitHub Actions → обновление на GitHub Pages
 
-`firestore.rules` разрешает пользователю только чтение собственных записей;
-запись возможна исключительно через Admin SDK внутри функций.
-
-## Запуск
-
-Фронтенд — статические файлы, сборка не требуется:
+## Запуск локально
 
 ```bash
-cd web && python3 -m http.server 8080
+npm install
+npm run dev
+# http://localhost:3000/v1
 ```
 
-Бекенд (эмуляторы Firebase, требует `firebase-tools` и `npm install` в
-`functions/`):
+### Сборка
 
 ```bash
-cd functions && npm install
-firebase emulators:start --only functions,firestore,auth,hosting
+npm run build
+# Результат в ./dist/
 ```
 
-Чтобы фронтенд подключился к реальному/эмулируемому Firebase-проекту,
-скопируйте `web/js/firebase-config.example.js` в `web/js/firebase-config.js`
-и заполните конфигурацию своего проекта (файл в `.gitignore`, ключи не
-попадают в репозиторий). Без этого файла приложение работает в локальном
-режиме: seed генерируется и разбирается прямо в браузере, сохранение в
-галерею недоступно.
+## GitHub Pages
+
+- Settings → Pages → Source: GitHub Actions
+- Workflow `.github/workflows/deploy.yml` автоматически собирает и развёртывает
+- Сайт: https://leonidy431.github.io/v1/
+- Админ: https://leonidy431.github.io/v1/admin/
+
+---
+
+**Версия**: Astro v7 + GitHub Pages + GitHub API CMS (2026)

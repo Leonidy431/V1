@@ -1,0 +1,39 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Светопись Домов">
+  <div class="gallery-hall">
+    <header class="masthead">
+      <p class="masthead__eyebrow">Интерактивный генератор живописных миров</p>
+      <h1 class="masthead__title">Светопись Домов</h1>
+      <p class="masthead__subtitle">По мотивам дрезденской академической школы лессировочного письма</p>
+    </header>
+
+    <section class="seed-console">
+      <label class="seed-console__label" for="seedInput">Замысел (12&nbsp;цифр)</label>
+      <div class="seed-console__row">
+        <input id="seedInput" class="seed-console__input" inputmode="numeric" maxlength="12" pattern="\d{12}" placeholder="000000000000" />
+        <button id="btnGenerate" class="btn btn--ghost" type="button">Бросить жребий</button>
+      </div>
+      <div class="seed-console__actions">
+        <button id="btnPaint" class="btn btn--primary" type="button" disabled>Начать сотворение</button>
+        <button id="btnSave" class="btn btn--ghost" type="button" disabled title="Требуется подключение Firebase">Сохранить в галерею</button>
+      </div>
+      <p id="statusLine" class="seed-console__status" aria-live="polite"></p>
+    </section>
+
+    <main class="frame-wrap">
+      <div class="frame">
+        <canvas id="canvas" class="canvas"></canvas>
+        <div id="craquelureOverlay" class="craquelure-overlay" aria-hidden="true"></div>
+      </div>
+      <figcaption id="inventoryNumber" class="inventory-number">№ ———— · Светопись Домов · холст, масло (симуляция)</figcaption>
+    </main>
+
+    <aside class="legend" aria-label="Разбор Домов">
+      <h2 class="legend__title">Разбор холста</h2>
+      <ol id="legendList" class="legend__list"></ol>
+    </aside>
+  </div>
+</BaseLayout>

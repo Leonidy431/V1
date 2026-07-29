@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Админ-панель — Светопись Домов</title>
+<style>
+  :root { --bg:#06121f; --surface:#10283f; --text:#e8f1f8; --dim:#9db4c8; --accent:#2fb4ff; --border:#1d3a55; --err:#ff7b7b; --ok:#7be0a3; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
+  .wrap { max-width:1000px; margin:0 auto; padding:1.5rem 1rem; }
+  h1 { font-size:1.4rem; margin-bottom:1rem; }
+  h2 { font-size:1.1rem; margin-bottom:.75rem; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.25rem; }
+  input, textarea, select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:.6rem .75rem; font-size:.95rem; font-family:inherit; }
+  textarea { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.88rem; line-height:1.5; resize:vertical; }
+  label { display:block; font-size:.85rem; color:var(--dim); margin:.75rem 0 .25rem; }
+  button { background:var(--accent); color:#06121f; border:0; border-radius:999px; padding:.6rem 1.4rem; font-weight:600; font-size:.95rem; cursor:pointer; }
+  button.secondary { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  button.danger { background:transparent; color:var(--err); border:1px solid var(--err); }
+  button:disabled { opacity:.5; cursor:default; }
+  .row { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; }
+  .msg { margin:.75rem 0; font-size:.9rem; }
+  .msg.err { color:var(--err); } .msg.ok { color:var(--ok); }
+  .tabs { display:flex; gap:.5rem; margin:1rem 0; flex-wrap:wrap; }
+  .tabs button { background:transparent; color:var(--dim); border:1px solid var(--border); }
+  .tabs button.active { color:var(--accent); border-color:var(--accent); }
+  .filelist { list-style:none; display:flex; flex-direction:column; gap:.4rem; margin:.75rem 0; }
+  .filelist a { color:var(--text); text-decoration:none; display:block; padding:.55rem .8rem; border:1px solid var(--border); border-radius:8px; }
+  .filelist a:hover { border-color:var(--accent); }
+  .topbar { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1rem; flex-wrap:wrap; }
+  .hint { font-size:.8rem; color:var(--dim); margin-top:.35rem; }
+  details { margin-top:1rem; } summary { cursor:pointer; color:var(--dim); font-size:.88rem; }
+  #app { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="login" class="card" style="max-width:460px;margin:10vh auto 0">
+    <h1>Вход в админ-панель</h1>
+    <label for="pw">Пароль (номер телефона)</label>
+    <input id="pw" type="password" inputmode="tel" autocomplete="current-password" placeholder="+7 ..." />
+    <div class="msg err" id="loginErr" hidden></div>
+    <div class="row" style="margin-top:1rem">
+      <button id="loginBtn">Войти</button>
+    </div>
+    <details>
+      <summary>Войти по токену GitHub (запасной вариант)</summary>
+      <label for="patInput">Fine-grained PAT с правом Contents: Read&Write на этот репозиторий</label>
+      <input id="patInput" type="password" placeholder="github_pat_..." />
+      <div class="row" style="margin-top:.6rem"><button class="secondary" id="patBtn">Войти по токену</button></div>
+    </details>
+  </div>
+
+  <div id="app">
+    <div class="topbar">
+      <h1>Управление сайтом</h1>
+      <div class="row">
+        <a href="../" style="color:var(--dim);font-size:.9rem">← на сайт</a>
+        <button class="secondary" id="logoutBtn">Выйти</button>
+      </div>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div id="view"></div>
+  </div>
+
+</div>
+<script>
+const REPO = 'leonidy431/v1';
+const BRANCH = 'main';
+const API = 'https://api.github.com';
+
+const COLLECTIONS = [
+  { key:'presets', label:'Галерея картин', dir:'src/content/presets',
+    template:`---\ntitle: "Название картины"\nseed: "${Math.floor(Math.random()*1e12).toString().padStart(12,'0')}"\ndescription: "Описание"\nauthor: ""\ndate: ${new Date().toISOString().slice(0,10)}\nlang: ru\ndraft: false\n---\n\nОписание картины в формате Markdown.\n`,
+    nameHint:'например 2026-08-01-moya-kartina.md' },
+];
+
+let token = sessionStorage.getItem('gh_token') || '';
+let current = COLLECTIONS[0];
+
+const $ = (id) => document.getElementById(id);
+const b64decode = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\n/g,'')), c=>c.charCodeAt(0)));
+const b64encode = (str) => { const u = new TextEncoder().encode(str); let s=''; u.forEach(c=>s+=String.fromCharCode(c)); return btoa(s); };
+const fromB64 = (b64) => Uint8Array.from(atob(b64), c=>c.charCodeAt(0));
+
+async function deriveKey(pw, salt, iters) {
+  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name:'PBKDF2', salt, iterations:iters, hash:'SHA-256' }, km,
+    { name:'AES-GCM', length:256 }, false, ['decrypt']);
+}
+
+async function tryDecrypt(auth, pw) {
+  for (const e of auth.entries) {
+    try {
+      const key = await deriveKey(pw, fromB64(e.salt), auth.iters || 310000);
+      const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv: fromB64(e.iv) }, key, fromB64(e.ct));
+      return new TextDecoder().decode(pt);
+    } catch (_) { /* следующая запись */ }
+  }
+  return null;
+}
+
+async function login() {
+  const raw = $('pw').value.trim();
+  const err = $('loginErr');
+  err.hidden = true;
+  if (!raw) return;
+  let auth;
+  try {
+    auth = await (await fetch('./auth.json', { cache:'no-store' })).json();
+  } catch (_) { auth = { entries: [] }; }
+  if (!auth.entries || !auth.entries.length) {
+    err.textContent = 'Вход по паролю не настроен (нет секрета ADMIN_PAT в GitHub Actions). Используйте вход по токену ниже.';
+    err.hidden = false;
+    return;
+  }
+  const digits = raw.replace(/\D/g, '');
+  const candidates = [...new Set([raw, digits,
+    digits.startsWith('8') && digits.length === 11 ? '7' + digits.slice(1) : null,
+    digits.startsWith('7') && digits.length === 11 ? '8' + digits.slice(1) : null,
+  ].filter(Boolean))];
+  $('loginBtn').disabled = true;
+  let pat = null;
+  for (const c of candidates) { pat = await tryDecrypt(auth, c); if (pat) break; }
+  $('loginBtn').disabled = false;
+  if (!pat) { err.textContent = 'Неверный пароль.'; err.hidden = false; return; }
+  await acceptToken(pat.trim(), err);
+}
+
+async function acceptToken(candidate, errEl) {
+  errEl.hidden = true;
+  candidate = candidate.replace(/[\s​-‍﻿ ]/g, '');
+  if (!/^[!-~]+$/.test(candidate)) {
+    errEl.textContent = 'Токен содержит недопустимые символы (кириллицу или спецзнаки из буфера обмена). Вставьте только сам токен — латиница, цифры и подчёркивания, обычно начинается с github_pat_';
+    errEl.hidden = false;
+    return;
+  }
+  const prev = token;
+  token = candidate;
+  try {
+    await gh(`/repos/${REPO}`);
+  } catch (e) {
+    token = prev;
+    errEl.textContent = e.message;
+    errEl.hidden = false;
+    return;
+  }
+  sessionStorage.setItem('gh_token', token);
+  showApp();
+}
+
+function patLogin() {
+  const v = $('patInput').value.trim();
+  if (!v) return;
+  acceptToken(v, $('loginErr'));
+}
+
+function logout() {
+  sessionStorage.removeItem('gh_token');
+  token = '';
+  location.reload();
+}
+
+async function gh(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Accept': 'application/vnd.github+json',
+      ...(opts.headers || {}),
+    },
+  });
+  if (res.status === 401) {
+    sessionStorage.removeItem('gh_token');
+    throw new Error('Токен отклонён GitHub (401): он истёк или отозван. Создайте новый fine-grained PAT, обновите секрет ADMIN_PAT и дождитесь пересборки сайта (Actions → Deploy → Run workflow). Затем обновите эту страницу.');
+  }
+  if (res.status === 403) {
+    const body = await res.text();
+    if (res.headers.get('x-ratelimit-remaining') === '0' || /rate limit/i.test(body)) {
+      const reset = Number(res.headers.get('x-ratelimit-reset')) * 1000;
+      const mins = reset ? Math.max(1, Math.ceil((reset - Date.now()) / 60000)) : null;
+      throw new Error('Исчерпан лимит запросов GitHub API. Токен, скорее всего, в порядке — подождите' + (mins ? ` ~${mins} мин.` : ' до часа.') + ' и попробуйте снова.');
+    }
+    throw new Error('Нет прав (403). Проверьте, что PAT выдан именно на репозиторий v1 с правом Contents: Read and write. ' + body.slice(0, 150));
+  }
+  if (!res.ok && res.status !== 404) throw new Error('GitHub API: ' + res.status + ' ' + (await res.text()).slice(0, 200));
+  return res;
+}
+
+function showApp() {
+  $('login').style.display = 'none';
+  $('app').style.display = 'block';
+  const tabs = $('tabs');
+  tabs.innerHTML = '';
+  COLLECTIONS.forEach((c) => {
+    const b = document.createElement('button');
+    b.textContent = c.label;
+    b.className = c === current ? 'active' : '';
+    b.onclick = () => { current = c; showApp(); };
+    tabs.appendChild(b);
+  });
+  renderList();
+}
+
+async function renderList() {
+  const view = $('view');
+  view.innerHTML = '<p class="msg">Загрузка…</p>';
+  try {
+    const res = await gh(`/repos/${REPO}/contents/${current.dir}?ref=${BRANCH}`);
+    const files = res.status === 404 ? [] : (await res.json()).filter((f) => f.name.endsWith('.md'));
+    const items = files.map((f) => `<li><a href="#" data-path="${f.path}">${f.name}</a></li>`).join('');
+    view.innerHTML = `
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <h2>${current.label}</h2>
+          ${current.template ? '<button id="newBtn">+ Добавить</button>' : ''}
+        </div>
+        <ul class="filelist">${items || '<li class="msg">Пока пусто.</li>'}</ul>
+        <p class="hint">После сохранения сайт пересобирается автоматически (1–3 минуты).</p>
+      </div>`;
+    view.querySelectorAll('a[data-path]').forEach((a) => {
+      a.onclick = (e) => { e.preventDefault(); openEditor(a.dataset.path); };
+    });
+    const nb = $('newBtn');
+    if (nb) nb.onclick = () => openEditor(null);
+  } catch (e) {
+    view.innerHTML = `<p class="msg err">${e.message}</p>`;
+  }
+}
+
+function splitDoc(text) {
+  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  return m ? { fm: m[1], body: m[2].replace(/^\r?\n/, '') } : { fm: '', body: text };
+}
+
+async function openEditor(path) {
+  const view = $('view');
+  let fm = '', body = '', sha = null, filename = '';
+  if (path) {
+    view.innerHTML = '<p class="msg">Загрузка…</p>';
+    try {
+      const res = await gh(`/repos/${REPO}/contents/${path}?ref=${BRANCH}`);
+      const data = await res.json();
+      sha = data.sha;
+      filename = data.name;
+      ({ fm, body } = splitDoc(b64decode(data.content)));
+    } catch (e) { view.innerHTML = `<p class="msg err">${e.message}</p>`; return; }
+  } else {
+    ({ fm, body } = splitDoc(current.template));
+  }
+  view.innerHTML = `
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2>${path ? 'Редактирование' : 'Новая запись'}: ${current.label.toLowerCase()}</h2>
+        <button class="secondary" id="backBtn">← к списку</button>
+      </div>
+      ${path ? '' : `<label>Имя файла</label><input id="fname" placeholder="file.md" /><div class="hint">${current.nameHint}</div>`}
+      <label>Параметры (заголовок, seed и т.д.)</label>
+      <textarea id="fm" rows="${Math.min(16, fm.split('\n').length + 2)}"></textarea>
+      <label>Описание (Markdown)</label>
+      <textarea id="body" rows="12"></textarea>
+      <div class="msg" id="saveMsg" hidden></div>
+      <div class="row" style="margin-top:1rem">
+        <button id="saveBtn">Сохранить и опубликовать</button>
+        ${path ? '<button class="danger" id="delBtn">Удалить</button>' : ''}
+      </div>
+    </div>`;
+  $('fm').value = fm;
+  $('body').value = body;
+  $('backBtn').onclick = renderList;
+  $('saveBtn').onclick = async () => {
+    const msg = $('saveMsg');
+    msg.hidden = true;
+    let p = path;
+    if (!p) {
+      const name = ($('fname').value.trim());
+      if (!/^[\w.\-]+\.md$/.test(name)) { msg.textContent = 'Укажите имя файла латиницей, оканчивающееся на .md'; msg.className='msg err'; msg.hidden=false; return; }
+      p = current.dir + '/' + name;
+    }
+    const content = '---\n' + $('fm').value.replace(/\r\n/g,'\n').trim() + '\n---\n\n' + $('body').value.replace(/\r\n/g,'\n').trim() + '\n';
+    $('saveBtn').disabled = true;
+    try {
+      const payload = { message: 'content: ' + (path ? 'update ' : 'add ') + p, content: b64encode(content), branch: BRANCH };
+      if (sha) payload.sha = sha;
+      const res = await gh(`/repos/${REPO}/contents/${p}`, { method:'PUT', body: JSON.stringify(payload) });
+      if (res.status === 404) throw new Error('Нет доступа на запись (404). Проверьте права PAT.');
+      const out = await res.json();
+      sha = out.content && out.content.sha;
+      path = p;
+      msg.textContent = 'Сохранено. Сайт обновится через 1–3 минуты.';
+      msg.className = 'msg ok'; msg.hidden = false;
+    } catch (e) { msg.textContent = e.message; msg.className='msg err'; msg.hidden=false; }
+    $('saveBtn').disabled = false;
+  };
+  const db = $('delBtn');
+  if (db) db.onclick = async () => {
+    if (!confirm('Удалить файл ' + filename + '?')) return;
+    const msg = $('saveMsg');
+    try {
+      const res = await gh(`/repos/${REPO}/contents/${path}`, { method:'DELETE',
+        body: JSON.stringify({ message:'content: delete ' + path, sha, branch: BRANCH }) });
+      if (res.status === 404) throw new Error('Нет доступа на удаление (404).');
+      renderList();
+    } catch (e) { msg.textContent = e.message; msg.className='msg err'; msg.hidden=false; }
+  };
+}
+
+$('loginBtn').onclick = login;
+$('pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+$('patBtn').onclick = patLogin;
+$('logoutBtn').onclick = logout;
+if (token) {
+  gh(`/repos/${REPO}`).then(showApp).catch((e) => {
+    sessionStorage.removeItem('gh_token');
+    token = '';
+    const err = $('loginErr');
+    err.textContent = 'Сохранённая сессия недействительна: ' + e.message;
+    err.hidden = false;
+  });
+}
+</script>
+</body>
+</html>
