@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Светопись Домов</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Cormorant+Garamond:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="gallery-hall">
+    <header class="masthead">
+      <p class="masthead__eyebrow">Интерактивный генератор живописных миров</p>
+      <h1 class="masthead__title">Светопись Домов</h1>
+      <p class="masthead__subtitle">По мотивам дрезденской академической школы лессировочного письма</p>
+    </header>
+
+    <section class="seed-console">
+      <label class="seed-console__label" for="seedInput">Замысел (12&nbsp;цифр)</label>
+      <div class="seed-console__row">
+        <input id="seedInput" class="seed-console__input" inputmode="numeric" maxlength="12" pattern="\d{12}" placeholder="000000000000" />
+        <button id="btnGenerate" class="btn btn--ghost" type="button">Бросить жребий</button>
+      </div>
+      <div class="seed-console__actions">
+        <button id="btnPaint" class="btn btn--primary" type="button" disabled>Начать сотворение</button>
+        <button id="btnSave" class="btn btn--ghost" type="button" disabled title="Требуется подключение Firebase">Сохранить в галерею</button>
+      </div>
+      <p id="statusLine" class="seed-console__status" aria-live="polite"></p>
+    </section>
+
+    <main class="frame-wrap">
+      <div class="frame">
+        <canvas id="canvas" class="canvas"></canvas>
+        <div id="craquelureOverlay" class="craquelure-overlay" aria-hidden="true"></div>
+      </div>
+      <figcaption id="inventoryNumber" class="inventory-number">№ ———— · Светопись Домов · холст, масло (симуляция)</figcaption>
+    </main>
+
+    <aside class="legend" aria-label="Разбор Домов">
+      <h2 class="legend__title">Разбор холста</h2>
+      <ol id="legendList" class="legend__list"></ol>
+    </aside>
+  </div>
+
+  <svg width="0" height="0" style="position:absolute">
+    <filter id="craquelureFilter">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise" />
+      <feColorMatrix in="noise" type="matrix"
+        values="0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 8 -4" result="cracks" />
+      <feComposite in="cracks" in2="SourceGraphic" operator="over" />
+    </filter>
+  </svg>
+
+  <script src="js/houses.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/oilEngine.js"></script>
+  <!-- Скопируйте js/firebase-config.example.js в js/firebase-config.js, чтобы включить Firebase-бекенд -->
+  <script src="js/firebase-config.js" onerror="this.remove()"></script>
+  <script src="js/firebase-client.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
