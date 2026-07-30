@@ -279,17 +279,40 @@ mastery_pct = (videos_watched × 10 + drills_completed × 5) % 100
 
 ## 🧪 Тестирование
 
+### Backend — unit-тесты (pytest + coverage)
+
+35 тестов, покрывающих все endpoints, включая граничные случаи (404, cap мастерства на 100%, создание отсутствующей записи мастерства, ротацию `/api/today`, монтирование статики). Порог покрытия закреплён в `backend/pytest.ini` (`--cov-fail-under=99`).
+
 ```bash
-# Backend
 cd backend
-pytest test_*.py              # Unit tests (если есть)
+pip install -r requirements-dev.txt
+pytest                         # 100% line coverage на main.py / models.py / seed_data.py
+```
 
-# Frontend
+### E2E — сквозные тесты (Playwright)
+
+22 теста, проверяющих реальное поведение в браузере: фильтры дриллов/тренировок, YouTube-оверлей, полный цикл Land/Water Mode, локализацию (Сет X из Y, а не Set X of Y), отсутствие console errors на всех экранах.
+
+```bash
+# 1. Запустить dev-серверы (в отдельных терминалах)
+cd backend && uvicorn main:app --port 8000 &
+cd frontend && npm run dev -- --port 5173 &
+
+# 2. Запустить e2e-тесты
+pip install -r e2e/requirements.txt
+pytest e2e/ --browser chromium
+```
+
+### Frontend build
+
+```bash
 cd frontend
-npm run test                  # Vitest
 npm run build                 # Build для production
+```
 
-# Integration (Firebase Emulator)
+### Integration (Firebase Emulator, ФАЗА 11)
+
+```bash
 firebase emulators:start      # Локальный эмулятор Firestore/Auth/Functions
 firebase test                 # Тесты безопасности правил
 ```

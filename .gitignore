@@ -20,6 +20,9 @@ __pycache__/
 *.pyo
 .venv/
 venv/
+.coverage
+.pytest_cache/
+htmlcov/
 
 # Node
 node_modules/

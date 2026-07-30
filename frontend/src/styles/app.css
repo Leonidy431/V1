@@ -48,7 +48,7 @@ body {
 }
 
 a { color: var(--accent); text-decoration: none; }
-button { font-family: inherit; cursor: pointer; border: none; }
+button { font-family: inherit; font-size: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 img { max-width: 100%; display: block; }
 
 /* ----------------------------------------------------------
@@ -933,4 +933,779 @@ img { max-width: 100%; display: block; }
 
 .workout-start-btn:active {
   transform: scale(0.97);
+}
+
+/* ----------------------------------------------------------
+   16. Component Integration Fixes
+   (real class names used by Dashboard, DrillLibrary,
+   WorkoutPlayer, WaterMode, Profile — added after wiring
+   the components to the shared stylesheet)
+   ---------------------------------------------------------- */
+
+/* --- Dashboard --- */
+.loading,
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 50vh;
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.stat-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.today-message {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.today-workout h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.focus-tag {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-glow);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.wave-icon {
+  margin-right: 6px;
+  font-size: 1.1em;
+}
+
+.mastery-overview h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.mastery-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  list-style: none;
+}
+
+.mastery-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mastery-item .drill-name {
+  flex: 0 0 38%;
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mastery-item .progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-surface);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mastery-item .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--success));
+  border-radius: 6px;
+}
+
+.mastery-item .drill-pct {
+  flex: 0 0 auto;
+  width: 36px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* --- Drill Library --- */
+.drill-library-header h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.drill-search {
+  margin-bottom: 12px;
+}
+
+.drill-search-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.drill-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.drill-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.category-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 16px;
+  margin-bottom: 4px;
+}
+
+.category-tabs::-webkit-scrollbar { display: none; }
+
+.category-tab {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  white-space: nowrap;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+
+.category-tab:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.category-tab.active {
+  background: var(--accent-glow);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.drill-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.drill-empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.drill-card {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+}
+
+.drill-card-color-strip {
+  width: 4px;
+  align-self: stretch;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.drill-card-content {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.drill-card-thumbnail {
+  width: 88px;
+  height: 66px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+}
+
+.drill-thumbnail-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.drill-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.drill-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.drill-card-description {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.drill-category-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--bg);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* --- Video Overlay (detail content) --- */
+.video-overlay-content {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 0 16px;
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+}
+
+.video-container iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.video-info {
+  padding: 16px 4px 8px;
+}
+
+.video-drill-name {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.video-drill-description {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.video-close-btn {
+  position: absolute;
+  top: 8px;
+  right: 24px;
+  z-index: 5;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- Workout Player --- */
+.workout-player-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0 16px;
+}
+
+.back-btn {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 4px;
+  transition: color var(--transition);
+}
+
+.back-btn:hover {
+  color: var(--accent);
+}
+
+.workout-title {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.progress-dots {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.progress-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  transition: background var(--transition), transform var(--transition);
+}
+
+.progress-dot.completed {
+  background: var(--success);
+}
+
+.progress-dot.current {
+  background: var(--accent);
+  transform: scale(1.3);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 8px;
+  background: var(--bg-surface);
+  padding: 4px;
+  border-radius: 14px;
+  margin-bottom: 16px;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-muted);
+  transition: background var(--transition), color var(--transition);
+}
+
+.mode-btn.active {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.sets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.set-card {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  padding: 14px 16px;
+}
+
+.category-indicator {
+  width: 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+.set-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.set-number {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.set-card .drill-name {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.set-details {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.set-details .distance {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.equipment-badge {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-glow);
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+/* --- Water Mode --- */
+.water-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.water-set-indicator {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.water-drill-name {
+  font-size: clamp(20px, 6vw, 28px);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.water-equipment-badge {
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-glow);
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.water-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.water-rep-counter {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.water-countdown {
+  font-size: clamp(60px, 20vw, 120px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  text-shadow: 0 0 40px rgba(34, 211, 238, 0.3);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.water-countdown.breathing {
+  animation: breathe 2s ease-in-out infinite;
+}
+
+.water-btn {
+  min-height: 64px;
+  padding: 16px;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 700;
+  background: var(--bg-surface);
+  color: var(--text);
+  transition: transform var(--transition), background var(--transition);
+}
+
+.water-btn:active {
+  transform: scale(0.95);
+}
+
+.water-btn-done {
+  background: var(--accent);
+  color: var(--bg);
+  box-shadow: 0 0 24px rgba(34, 211, 238, 0.3);
+}
+
+/* --- Profile --- */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.avatar-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-glow);
+  border: 2px solid rgba(34, 211, 238, 0.3);
+}
+
+.avatar-initials {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.profile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-name {
+  font-size: 19px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.level-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--accent-glow);
+  color: var(--accent);
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  margin-right: 8px;
+}
+
+.workout-count {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.mastery-overview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.mastery-circle {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mastery-circle-inner {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mastery-circle-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.mastery-overview-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.level-progression {
+  margin-bottom: 28px;
+}
+
+.level-track {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  padding-top: 8px;
+}
+
+.level-track::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--bg-surface);
+  z-index: 0;
+}
+
+.level-fill {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+  z-index: 1;
+  transition: width var(--transition);
+}
+
+.level-step {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.level-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 2px solid var(--bg);
+}
+
+.level-step.reached .level-dot {
+  background: var(--accent);
+}
+
+.level-step-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.level-step.reached .level-step-label {
+  color: var(--text);
+}
+
+.level-step.current .level-dot {
+  box-shadow: 0 0 8px var(--accent-glow);
+  transform: scale(1.3);
+}
+
+.mastery-breakdown h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.mastery-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.mastery-drill-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mastery-pct {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.mastery-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mastery-card-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.mastery-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.stat-icon {
+  font-size: 13px;
+}
+
+.workout-history h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.workout-history-count {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.workout-history-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workout-history-item {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }

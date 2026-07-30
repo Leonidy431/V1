@@ -124,7 +124,7 @@ export default function WaterMode({
 
       <div className="water-header">
         <span className="water-set-indicator">
-          Set {setIndex + 1} of {totalSets}
+          Сет {setIndex + 1} из {totalSets}
         </span>
         <h1 className="water-drill-name">{drill?.name}</h1>
       </div>

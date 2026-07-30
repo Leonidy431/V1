@@ -4,6 +4,7 @@ import { api } from "../api";
 export default function Dashboard({ onStartWorkout, onNavigate }) {
   const [todayData, setTodayData] = useState(null);
   const [user, setUser] = useState(null);
+  const [drills, setDrills] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -11,13 +12,15 @@ export default function Dashboard({ onStartWorkout, onNavigate }) {
 
     async function fetchData() {
       try {
-        const [today, profile] = await Promise.all([
+        const [today, profile, allDrills] = await Promise.all([
           api.getToday(),
           api.getUser(),
+          api.getDrills(),
         ]);
         if (!cancelled) {
           setTodayData(today);
           setUser(profile);
+          setDrills(allDrills);
         }
       } catch (err) {
         console.error("Dashboard fetch error:", err);
@@ -59,6 +62,11 @@ export default function Dashboard({ onStartWorkout, onNavigate }) {
   const topDrills = [...masteryEntries]
     .sort(([, a], [, b]) => (b.mastery_pct ?? 0) - (a.mastery_pct ?? 0))
     .slice(0, 3);
+
+  const drillNameMap = {};
+  for (const drill of drills) {
+    drillNameMap[drill.id] = drill.name;
+  }
 
   const LEVEL_LABELS = {
     novice: "Новичок",
@@ -118,9 +126,9 @@ export default function Dashboard({ onStartWorkout, onNavigate }) {
         <div className="mastery-overview">
           <h3>Ваш прогресс</h3>
           <ul className="mastery-list">
-            {topDrills.map(([drillName, drillData]) => (
-              <li key={drillName} className="mastery-item">
-                <span className="drill-name">{drillName}</span>
+            {topDrills.map(([drillId, drillData]) => (
+              <li key={drillId} className="mastery-item">
+                <span className="drill-name">{drillNameMap[drillId] || drillId}</span>
                 <div className="progress-bar">
                   <div
                     className="progress-fill"
