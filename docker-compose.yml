@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      target: production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/drills')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - hydroflow
+
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - hydroflow
+
+networks:
+  hydroflow:
+    driver: bridge

@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    healthcheck:
+      disable: true
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_PROXY=http://backend:8000
+    depends_on:
+      - backend
+    healthcheck:
+      disable: true

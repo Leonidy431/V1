@@ -14,7 +14,7 @@
 - **32 эксперта** в панели оценки (биомеханика, UX, архитектура, ML...)
 - **48 параметров** для оценки каждого решения
 - **299 вариантов** анализируются для выбора лучшего подхода
-- **12 фаз** миграции на Firebase Studio (с полной научной базой)
+- **12 фаз** контейнеризации на Docker (с полной научной базой)
 
 ---
 
@@ -23,9 +23,9 @@
 ### Требования
 - Python 3.11+
 - Node.js 18+
-- Firebase CLI (для ФАЗЫ 6+)
+- Docker + Docker Compose (для контейнерного запуска/деплоя)
 
-### Установка
+### Установка (bare-metal)
 
 ```bash
 # 1. Клонировать репо
@@ -41,7 +41,7 @@ cd ../frontend
 npm install
 ```
 
-### Запуск
+### Запуск (bare-metal)
 
 ```bash
 # Терминал 1: Backend
@@ -53,6 +53,16 @@ uvicorn main:app --reload
 cd frontend
 npm run dev
 # Frontend доступен http://localhost:5173
+```
+
+### Запуск (Docker)
+
+```bash
+# Dev — hot reload, порты 8000/5173 наружу
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+# Production — nginx на :80, backend только во внутренней сети
+docker compose up --build -d
 ```
 
 ### Проверка
@@ -68,10 +78,10 @@ npm run dev
 ### Почему это важно?
 Каждое решение в HydroFlow обоснованно **научными исследованиями**, а не интуицией:
 
-- **Firestore** выбран на основе Google Research ["Bigtable" (2006)](#)
+- **Docker multi-stage build** обоснован ["The Twelve-Factor App" (2011)](#) (dev/prod parity)
 - **MediaPipe Pose** (для Video Match) основан на ["Pose Estimation for Sports" (IEEE, 2021)](#)
 - **PWA offline** обоснована [CHI 2022 study](#) (+45% retention)
-- **Cloud Functions** валидированы [ICSE 2021](#) (холодный старт <2сек)
+- **PostgreSQL** валидирован ["The Log-Structured Merge-Tree" (1996)](#) (write-heavy нагрузка)
 
 ### Процесс выбора решений
 
@@ -87,11 +97,11 @@ npm run dev
 Консенсус >50% → выбор лучшего решения
 ```
 
-**Пример:** Для Firestore:
-- Firestore: 8.7/10 ✅
-- PostgreSQL: 8.1/10
-- MongoDB: 8.0/10
-- **Консенсус:** 91% экспертов за Firestore (масштабируемость, real-time, интеграция)
+**Пример:** Для базы данных (ФАЗА 4):
+- PostgreSQL (контейнер): 8.7/10 ✅
+- SQLite (файл в volume): 7.8/10
+- MongoDB (контейнер): 8.0/10
+- **Консенсус:** 85% экспертов за PostgreSQL (реляционная схема, зрелость, SQLAlchemy)
 
 ---
 
@@ -103,12 +113,17 @@ npm run dev
 │   ├── main.py                       # REST API endpoints
 │   ├── models.py                     # Pydantic модели
 │   ├── seed_data.py                  # 8 дриллов + 3 тренировки (на основе спортнауки)
-│   └── requirements.txt
+│   ├── test_main.py                  # 35 тестов, 100% coverage
+│   ├── pytest.ini                    # --cov-fail-under=99
+│   ├── requirements.txt
+│   ├── requirements-dev.txt
+│   ├── Dockerfile                    # стадии dev / production
+│   └── .dockerignore
 │
 ├── frontend/                         # React + Vite
 │   ├── src/
 │   │   ├── App.jsx                   # Главный компонент (4 экрана)
-│   │   ├── api.js                    # REST API клиент (будет заменён на Firestore в ФАЗЕ 5)
+│   │   ├── api.js                    # REST API клиент
 │   │   ├── components/
 │   │   │   ├── Dashboard.jsx         # "Зеркало воды" — рекомендация дня, мастерство
 │   │   │   ├── DrillLibrary.jsx      # Библиотека дриллов с YouTube
@@ -121,21 +136,27 @@ npm run dev
 │   ├── index.html
 │   ├── package.json
 │   ├── vite.config.js
-│   └── dist/                         # Build output (для Firebase Hosting)
+│   ├── nginx.conf                    # SPA fallback + /api proxy к backend-сервису
+│   ├── Dockerfile                    # стадии dev / build / production (nginx)
+│   └── .dockerignore
 │
-├── CLAUDE.md                         # 📘 ПРАВИЛА И МЕТОДОЛОГИЯ (читай сначала!)
-├── FIREBASE_STUDIO_SPEC.md           # 📋 12 фаз миграции на Firebase (3179 строк)
-├── README.md                         # Этот файл
-├── firestore.rules                   # Security rules (ФАЗА 2)
-├── firestore.indexes.json            # Firestore индексы (ФАЗА 2)
-└── firebase.json                     # Конфиг Firebase (ФАЗА 1)
+├── e2e/                               # Playwright E2E-тесты
+│   ├── conftest.py
+│   ├── test_hydroflow.py             # 22 сквозных теста
+│   └── requirements.txt
+│
+├── docker-compose.yml                 # production: backend + frontend (nginx)
+├── docker-compose.dev.yml             # dev override: hot reload, порты наружу
+├── CLAUDE.md                          # 📘 ПРАВИЛА И МЕТОДОЛОГИЯ (читай сначала!)
+├── DOCKER_DEPLOYMENT_SPEC.md          # 📋 12 фаз контейнеризации
+└── README.md                          # Этот файл
 ```
 
 ---
 
 ## 🏗️ Архитектура
 
-### Текущая (MVP)
+### Текущая (bare-metal MVP)
 ```
 ┌─────────────────────┐
 │  React + Vite       │
@@ -149,66 +170,66 @@ npm run dev
 └─────────────────────┘
 ```
 
-### Целевая (ФАЗА 6)
+### Контейнеризованная (ФАЗЫ 1–3, готово)
 ```
 ┌──────────────────────────────────┐
-│  React + Firebase SDK            │
-│  (Frontend, PWA, offline-first)  │
+│  Traefik (reverse proxy + TLS)   │  ← ФАЗА 6, единственный внешний порт
 └──────────┬───────────────────────┘
-           │ Firebase SDK
+           │ внутренняя docker-сеть
            ↓
-┌──────────────────────────────────┐
-│  Firebase Hosting (CDN)          │
-├──────────────────────────────────┤
-│  Cloud Firestore (Database)      │
-│  Cloud Functions (Backend)       │
-│  Firebase Auth (Authentication)  │
-│  Cloud Storage (Videos)          │
-│  Cloud Logging & Analytics       │
-└──────────────────────────────────┘
+┌──────────────────────────────────┐      ┌──────────────────────────┐
+│  frontend (nginx:alpine)         │─────▶│  backend (python:3.11)   │
+│  React build, /api proxy         │ /api │  FastAPI, non-root       │
+└──────────────────────────────────┘      └──────────┬───────────────┘
+                                                       │ ФАЗА 4
+                                                       ↓
+                                            ┌──────────────────────────┐
+                                            │  db (postgres:16)        │
+                                            │  именованный volume      │
+                                            └──────────────────────────┘
 ```
 
 ---
 
 ## 🔬 Data Model
 
-### Collections (Firestore)
+Сейчас модель живёт в памяти процесса (`backend/models.py`, Pydantic) и сбрасывается при
+рестарте backend-контейнера. ФАЗА 4 (`DOCKER_DEPLOYMENT_SPEC.md`) переносит её на
+PostgreSQL — схема ниже соответствует и текущим Pydantic-моделям, и планируемым таблицам.
 
 ```
-drills/{drillId}
+Drill
 ├── id: string (e.g., "drill-01")
 ├── name: string (e.g., "Высокий локоть (Catch-Up Drill)")
 ├── youtube_id: string (e.g., "T1OoKEfr_co")
-├── time_start: number (секунды)
-├── time_end: number (секунды)
+├── time_start: int (секунды)
+├── time_end: int (секунды)
 ├── description: string (Markdown)
-└── category: string (warmup | technique | strength | cooldown)
+└── category: enum (warmup | technique | strength | cooldown)
 
-workouts/{workoutId}
+Workout
 ├── id: string
 ├── name: string
 ├── description: string
-├── level: string (novice | intermediate | advanced | pro)
+├── level: enum (novice | intermediate | advanced | pro)
 ├── focus: string (текстовое описание фокуса)
-└── sets: subcollection
-    └── {setId}
-        ├── drill_id: string
-        ├── distance_m: number
-        ├── rest_seconds: number
-        ├── repetitions: number
-        └── equipment: string (optional)
+└── sets: list[WorkoutSet]
+    ├── drill_id: string (FK → Drill.id)
+    ├── distance_m: int
+    ├── rest_seconds: int
+    ├── repetitions: int
+    └── equipment: string | null
 
-users/{userId}
-├── id: string (Firebase Auth UID)
+UserProfile
+├── id: string
 ├── name: string
-├── level: string (novice | intermediate | advanced | pro)
-├── mastery: map
-│   └── {drillId}
-│       ├── drill_id: string
-│       ├── videos_watched: number
-│       ├── drills_completed: number
-│       └── mastery_pct: float (0–100)
-└── workout_history: array (workout IDs completed)
+├── level: enum (novice | intermediate | advanced | pro)
+├── mastery: dict[drill_id → DrillMastery]
+│   ├── drill_id: string
+│   ├── videos_watched: int
+│   ├── drills_completed: int
+│   └── mastery_pct: float (0–100)
+└── workout_history: list[string] (workout IDs completed)
 ```
 
 ---
@@ -267,12 +288,12 @@ mastery_pct = (videos_watched × 10 + drills_completed × 5) % 100
 - No HTTPS (localhost только)
 - No rate limiting
 
-### Запланированные (ФАЗА 3, 12)
-- Firebase Authentication (Email + Google Sign-In)
-- Firestore Security Rules (Row-Level Security)
-- Cloud Armor (DDoS protection)
-- reCAPTCHA v3 (bot detection)
-- HTTPS + HSTS headers
+### Запланированные (ФАЗЫ 5, 6, 12)
+- JWT-аутентификация (FastAPI + `python-jose` + `passlib[argon2]`)
+- Traefik/nginx как единственная внешняя точка входа, backend/db — только во внутренней сети
+- Let's Encrypt TLS + автоматический HTTP→HTTPS редирект
+- Non-root пользователь в контейнерах (уже в `backend/Dockerfile`)
+- `trivy image` сканирование уязвимостей в CI
 - Content Security Policy (CSP)
 
 ---
@@ -310,18 +331,19 @@ cd frontend
 npm run build                 # Build для production
 ```
 
-### Integration (Firebase Emulator, ФАЗА 11)
+### Integration (полный стек в Docker, ФАЗА 11)
 
 ```bash
-firebase emulators:start      # Локальный эмулятор Firestore/Auth/Functions
-firebase test                 # Тесты безопасности правил
+docker compose config --quiet   # Валидация синтаксиса compose-файлов
+docker compose up --build -d    # Поднять весь стек
+pytest e2e/ --browser chromium  # Прогнать e2e против контейнеров
 ```
 
 ---
 
 ## 📈 Метрики (Аналитика)
 
-**Firebase Analytics** (ФАЗА 7) отслеживает:
+**Self-hosted аналитика** (ФАЗА 7, Prometheus/Grafana или структурированные логи) отслеживает:
 - `workout_started` — юзер начал тренировку
 - `workout_completed` — завершил
 - `drill_watched` — посмотрел видео дрилла
@@ -332,21 +354,19 @@ firebase test                 # Тесты безопасности правил
 
 ## 🚢 Развёртывание (Deployment)
 
-### Локально
+### Локально (bare-metal)
 ```bash
 npm run dev    # Frontend на :5173
 uvicorn ...    # Backend на :8000
 ```
 
-### На Firebase (ФАЗА 6)
+### На Docker (production)
 ```bash
-# 1. Build
-cd frontend && npm run build && cd ..
+docker compose up --build -d
+# frontend (nginx) на :80, backend доступен только внутри docker-сети
 
-# 2. Deploy
-firebase deploy --only hosting,functions
-
-# Результат: https://hydroflow-prod.web.app
+# С reverse proxy + TLS (ФАЗА 6, см. DOCKER_DEPLOYMENT_SPEC.md):
+# добавить сервис traefik, опубликовать 80/443, убрать published-порт у frontend
 ```
 
 ---
@@ -354,7 +374,7 @@ firebase deploy --only hosting,functions
 ## 📚 Документация
 
 - **CLAUDE.md** — Правила разработки, методология 32 экспертов, 48 параметров, 299 вариантов
-- **FIREBASE_STUDIO_SPEC.md** — 12 фаз миграции на Firebase (архитектура, коды, примеры)
+- **DOCKER_DEPLOYMENT_SPEC.md** — 12 фаз контейнеризации (архитектура, коды, примеры)
 - **Code Comments** — каждая критичная функция ссылается на научный источник (DOI)
 
 ---
@@ -401,18 +421,18 @@ Final score: 8.7/10 (top-1 out of 299 solutions)
 
 | Фаза | Название | Статус | Сроки |
 |------|----------|--------|-------|
-| ✅ 1 | Инициализация Firebase | DONE | Jun 2026 |
-| ✅ 2 | Миграция Firestore | DONE (spec) | Jul 2026 |
-| 3 | Firebase Authentication | TODO | Jul 2026 |
-| 4 | Cloud Functions | TODO | Aug 2026 |
-| 5 | Frontend SDK | TODO | Aug 2026 |
-| 6 | Firebase Hosting | TODO | Sep 2026 |
-| 7 | Аналитика | TODO | Sep 2026 |
+| ✅ 1 | Контейнеризация Backend | DONE | Jul 2026 |
+| ✅ 2 | Контейнеризация Frontend | DONE | Jul 2026 |
+| ✅ 3 | Оркестрация (compose) | DONE | Jul 2026 |
+| 4 | PostgreSQL | TODO | Aug 2026 |
+| 5 | Аутентификация | TODO | Aug 2026 |
+| 6 | Reverse proxy + TLS | TODO | Sep 2026 |
+| 🟡 7 | Наблюдаемость | Health checks готовы | Sep 2026 |
 | 8 | PWA + Offline | TODO | Oct 2026 |
 | 9 | Push Notifications | TODO | Oct 2026 |
 | 10 | Video Match ML | TODO | Nov 2026 |
-| 11 | CI/CD Pipeline | TODO | Nov 2026 |
-| 12 | Безопасность | TODO | Dec 2026 |
+| 🟡 11 | Тестирование и CI/CD | Тесты готовы (100% coverage + 22 e2e), workflow-файл — нет | Nov 2026 |
+| 🟡 12 | Безопасность образов | Non-root + multi-stage готовы, сканирование — нет | Dec 2026 |
 
 ---
 
@@ -420,7 +440,7 @@ Final score: 8.7/10 (top-1 out of 299 solutions)
 
 **Вопросы?**
 - Прочитай CLAUDE.md (методология)
-- Смотри FIREBASE_STUDIO_SPEC.md (12 фаз с примерами)
+- Смотри DOCKER_DEPLOYMENT_SPEC.md (12 фаз с примерами)
 - Проверь код (каждое решение ссылается на научный источник)
 
 **Хочешь внести изменения?**

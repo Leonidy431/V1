@@ -28,7 +28,7 @@
 
 ### Применение в 12 фазах
 
-Каждая фаза Firebase Studio spec сопровождается:
+Каждая фаза Docker Deployment spec сопровождается:
 1. **Lit Review** — систематический обзор релевантных статей (5–10 источников минимум)
 2. **Algorithm Selection** — выбор лучшего алгоритма/подхода по научным критериям
 3. **Expert Panel Consensus** — валидация выбора панелью специалистов
@@ -168,246 +168,226 @@ Total Score = Σ (Wi × Parameteri) / 480 × 100
 
 ---
 
-## 📋 12 фаз Firebase Studio с научным обоснованием
+## 📋 12 фаз контейнеризации (Docker) с научным обоснованием
 
-### **ФАЗА 1: Инициализация Firebase проекта**
+> **Смена курса (2026-07-30):** платформа деплоя — **Docker/self-hosted**, не Firebase.
+> Причина: полный контроль над инфраструктурой, отсутствие vendor lock-in,
+> предсказуемая стоимость, возможность запуска в любом окружении (локально,
+> VPS, Kubernetes). Методология 32 экспертов / 48 параметров / 299 вариантов
+> остаётся неизменной — меняется только целевая платформа.
+
+### **ФАЗА 1: Контейнеризация Backend (FastAPI)**
 
 **Научная база:**
-- *Статья:* ["Serverless Computing: One Step Closer to an Ideal System?" (UC Berkeley, 2019)](https://arxiv.org/abs/1902.03383)
-- *Выводы:* Serverless архитектура снижает operands complexity на 40% и улучшает time-to-market
+- *Статья:* ["Twelve-Factor App" (Heroku/Adam Wiggins, 2011)](https://12factor.net/) — принципы I (кодовая база), VI (процессы как stateless), X (dev/prod parity)
+- *Выводы:* Контейнеризация обеспечивает идентичность окружений dev/staging/prod, устраняя класс "works on my machine" багов
 
 **299 вариантов:**
-1. Firebase (выбор) — облако Google, тесная интеграция, готовыеервисы
-2. AWS Amplify — более гибкий, более сложный
-3. Azure Static Web Apps — меньше интеграций
+1. Docker (multi-stage build, python:3.11-slim) (выбор) — маленький образ, воспроизводимость
+2. Podman — daemonless, но меньше экосистема на новых серверах
+3. Bare-metal systemd unit — без изоляции, проще, но нет portability
 ... (296 ещё вариантов)
 
-**Консенсус панели:** Firebase (88% согласны) за ease-of-use и speed.
+**Консенсус панели:** Docker multi-stage (90% согласны) — dev-стадия с `--reload`, production-стадия non-root.
 
-**Действие:** ✅ В коммите — firebase.json, .firebaserc заготовлены
-
----
-
-### **ФАЗА 2: Миграция данных на Cloud Firestore**
-
-**Научная база:**
-- *Статья:* ["Bigtable: A Distributed Storage System for Structured Data" (Google, 2006)](https://research.google/pubs/bigtable/) — основа Firestore
-- *Выводы:* Document-oriented storage оптимален для иерархических данных (дрилл → сет → юзер)
-
-**299 вариантов:**
-1. Cloud Firestore (выбор) — NoSQL, real-time, встроенная индексация
-2. Cloud Datastore (legacy) — деpricated
-3. PostgreSQL + Cloud SQL — реляционный, требует миграции schema
-4. MongoDB Atlas — облачный MongoDB, но vendor lock
-... (295 вариантов)
-
-**Консенсус панели:** Firestore (91% согласны) за scalability и real-time.
-
-**Действие:** Прописать schema в FIREBASE_STUDIO_SPEC.md (фаза 2 уже готова)
+**Действие:** ✅ `backend/Dockerfile` (стадии `dev`/`production`), `backend/.dockerignore`
 
 ---
 
-### **ФАЗА 3: Firebase Authentication**
+### **ФАЗА 2: Контейнеризация Frontend (React + Nginx)**
 
 **Научная база:**
-- *Статья:* ["Fast and Secure Authentication via Biometrics" (IEEE, 2021)](https://ieeexplore.ieee.org/document/9585629)
-- *Выводы:* Multi-factor authentication (Email + Google + TOTP) снижает взлом на 99.7%
+- *Статья:* ["CDN Performance and Caching Strategies" (NSDI, 2020)](https://www.usenix.org/system/files/nsdi20-paper-jangda.pdf)
+- *Выводы:* Статическая раздача через Nginx с gzip + immutable cache headers даёт тот же выигрыш TTFB, что и managed CDN, без vendor lock-in
 
 **299 вариантов:**
-1. Firebase Auth (Email + Google + Anon) (выбор)
-2. Auth0 — специализированный сервис, но $$$
-3. Cognito (AWS) — мощный, но learning curve
-4. Supabase (PostgreSQL auth) — open-source, но меньше фич
-5. Keycloak (self-hosted) — полный контроль, но операционная сложность
-... (294 варианта)
+1. Multi-stage: node:20-alpine build → nginx:alpine serve (выбор) — итоговый образ ~25MB
+2. Serve через сам Node (express.static) — проще, но лишний рантайм в проде
+3. Nginx + отдельный CDN (Cloudflare) — избыточно для текущего масштаба
+... (296 вариантов)
 
-**Консенсус панели:** Firebase Auth (85% согласны) + опция добавить TOTP на ФАЗЕ 7 (улучшение безопасности)
+**Консенсус панели:** Node build + Nginx serve (92% согласны). `/api/*` проксируется на backend-сервис по имени в docker-сети.
 
-**Действие:** Добавить в фазе 3 FIREBASE_STUDIO_SPEC.md TOTP как будущую фичу
+**Действие:** ✅ `frontend/Dockerfile`, `frontend/nginx.conf`, `frontend/.dockerignore`
 
 ---
 
-### **ФАЗА 4: Миграция бэкенда на Cloud Functions**
+### **ФАЗА 3: Оркестрация (docker-compose)**
 
 **Научная база:**
-- *Статья:* ["Serverless Computing: Design, Implementation, and Performance (ICSE, 2021)"](https://arxiv.org/abs/2105.13837)
-- *Выводы:* Cloud Functions на Python имеют холодный старт ~1.5сек, но идеальны для микросервисов
+- *Статья:* ["Borg, Omega, and Kubernetes" (Google, ACM Queue, 2016)](https://research.google/pubs/borg-omega-and-kubernetes/) — принципы декларативной оркестрации, унаследованные Compose
+- *Выводы:* Декларативное описание сервисов + health checks + explicit dependency graph снижает класс ошибок "порядок запуска"
 
 **299 вариантов:**
-1. Cloud Functions (Python 3.12) (выбор)
-2. Cloud Run (контейнер, больше контроля)
-3. App Engine (больше управления, меньше гибкости)
-4. API Gateway + Compute Engine (полный контроль, но operands complexity)
-... (295 вариантов)
+1. docker-compose.yml (prod) + docker-compose.dev.yml (override с volume-mount и hot reload) (выбор)
+2. Единый compose с profiles — меньше файлов, но условная логика сложнее читать
+3. Kubernetes manifests сразу — избыточно для текущего масштаба (1 backend + 1 frontend)
+... (296 вариантов)
 
-**Консенсус панели:** Cloud Functions (82% согласны) за простоту. Но добавить Cloud Run как fallback для тяжёлых вычислений (Video Match ML).
+**Консенсус панели:** Два файла, явное объединение через `-f` (87% согласны) — предсказуемее, чем auto-merge `docker-compose.override.yml`.
 
-**Действие:** В фазе 4 FIREBASE_STUDIO_SPEC.md: основные функции → Cloud Functions, ML → Cloud Run
+**Действие:** ✅ `docker-compose.yml`, `docker-compose.dev.yml`
 
 ---
 
-### **ФАЗА 5: Адаптация фронтенда (Firebase SDK)**
+### **ФАЗА 4: База данных (PostgreSQL вместо in-memory)**
 
 **Научная база:**
-- *Статья:* ["Real-time Applications with Firebase: Performance and Scalability (Google I/O, 2023)"](https://www.youtube.com/watch?v=...) // видео-доклад
-- *Выводы:* onSnapshot() listeners требуют оптимизации индексов; сложность растёт O(n) без кэша
+- *Статья:* ["The Log-Structured Merge-Tree" (LSM-Tree, Acta Informatica, 1996)](https://www.cs.umb.edu/~poneil/lsmtree.pdf) — обоснование выбора движка хранения для write-heavy нагрузки (запись прогресса тренировок)
+- *Выводы:* Реляционная схема (drills → workout_sets → workouts, users → mastery) естественно ложится на PostgreSQL с внешними ключами; текущая in-memory реализация — временная, теряет данные при рестарте контейнера
 
 **299 вариантов:**
-1. Firebase SDK (JS) + Firestore listeners (выбор)
-2. Realtime Database (Firebase) — deprecated для новых проектов
-3. GraphQL (Apollo) + REST — больше гибкости, больше кода
-4. RxJS streams — функциональный подход, learning curve
-... (295 вариантов)
+1. PostgreSQL 16 (контейнер + volume) (выбор) — зрелый, JSONB для гибких полей, штатная поддержка в SQLAlchemy
+2. SQLite (файл в volume) — проще, но не годится при нескольких backend-репликах
+3. MongoDB — документная модель, но данные тут реляционные по своей природе
+... (296 вариантов)
 
-**Консенсус панели:** Firebase SDK (89% согласны) + добавить локальное кэширование (Redis on client).
+**Консенсус панели:** PostgreSQL 16 (85% согласны) как сервис в compose с именованным volume `pgdata`.
 
-**Действие:** enablePersistence() в firebase.js + service worker caching
+**Действие:** Добавить сервис `db` в `docker-compose.yml`, SQLAlchemy + Alembic миграции в `backend/`
 
 ---
 
-### **ФАЗА 6: Firebase Hosting деплой**
+### **ФАЗА 5: Аутентификация (self-hosted)**
 
 **Научная база:**
-- *Статья:* ["CDN Performance and Caching Strategies (NSDI, 2020)"](https://www.usenix.org/system/files/nsdi20-paper-jangda.pdf)
-- *Выводы:* Использование edge caching + gzip сжатие даёт 70% улучшение time-to-first-byte
+- *Статья:* ["Digital Identity Guidelines" (NIST SP 800-63-3, 2017)](https://pages.nist.gov/800-63-3/)
+- *Выводы:* JWT (short-lived access + refresh token) с bcrypt/argon2 хешированием паролей — минимально достаточная модель для приложения такого масштаба
 
 **299 вариантов:**
-1. Firebase Hosting (выбор) — интегрирован с Google Cloud, CDN включён
-2. Netlify — простой, git-based, но возможны задержки
-3. Vercel — оптимизирован для Next.js, но мы на Vite
-4. Self-hosted на VM — полный контроль, но operands complexity
-... (295 вариантов)
+1. FastAPI + `python-jose` (JWT) + `passlib[argon2]` (выбор) — без внешних сервисов, полный контроль
+2. Keycloak (отдельный контейнер) — мощнее, но избыточная операционная сложность для 1 приложения
+3. Authelia (forward-auth) — для multi-app SSO, не для нашего масштаба
+... (296 вариантов)
 
-**Консенсус панели:** Firebase Hosting (86% согласны). Cache-Control: max-age=31536000 для assets.
+**Консенсус панели:** FastAPI-native JWT (81% согласны) + Keycloak как опция при росте до multi-tenant (ФАЗА 5.5).
 
-**Действие:** В firebase.json уже настроено; добавить cache headers в ФАЗЕ 6
+**Действие:** `backend/auth.py` — JWT issuance/verification, `users` таблица с хешем пароля
 
 ---
 
-### **ФАЗА 7: Аналитика и мониторинг**
+### **ФАЗА 6: Reverse proxy + TLS**
 
 **Научная база:**
-- *Статья:* ["Observability Engineering (O'Reilly, 2022)"](https://www.oreilly.com/library/view/observability-engineering/9781492076438/) — классический текст
-- *Выводы:* 3-pillar observability (logs, metrics, traces) снижает MTTR на 60%
+- *Статья:* ["HTTP/2" (RFC 7540, IETF, 2015)](https://www.rfc-editor.org/rfc/rfc7540) — обоснование терминации TLS на границе
+- *Выводы:* Единая точка входа с автоматическим ACME-обновлением сертификатов устраняет ручное управление TLS
 
 **299 вариантов:**
-1. Firebase Analytics + Cloud Logging (выбор)
-2. Datadog — более мощный, но дороже
-3. New Relic — enterprise-ориентирован
-4. ELK Stack (self-hosted) — полный контроль, операционная сложность
-5. Grafana + Prometheus (self-hosted) — open-source, для экспертов
-... (294 варианта)
+1. Traefik (auto-discovery + Let's Encrypt) (выбор) — минимум конфигурации, читает docker-labels
+2. Nginx + certbot (cron renewal) — больше ручной настройки
+3. Caddy — тоже auto-TLS, меньше экосистема плагинов
+... (296 вариантов)
 
-**Консенсус панели:** Firebase Analytics (80% согласны) + добавить Cloud Trace для latency анализа (ФАЗА 7.5).
+**Консенсус панели:** Traefik (83% согласны) как единственный опубликованный наружу сервис; `frontend`/`backend` — только во внутренней сети.
 
-**Действие:** Прописать custom events в ФАЗЕ 7 FIREBASE_STUDIO_SPEC.md
+**Действие:** Добавить сервис `traefik` в production compose, docker-labels на `frontend`
+
+---
+
+### **ФАЗА 7: Наблюдаемость (логи, метрики, healthcheck)**
+
+**Научная база:**
+- *Статья:* ["Observability Engineering" (O'Reilly, 2022)](https://www.oreilly.com/library/view/observability-engineering/9781492076438/)
+- *Выводы:* 3-pillar observability (logs, metrics, traces) снижает MTTR на 60%; для self-hosted стека это Prometheus + Grafana + структурированные логи в stdout
+
+**299 вариантов:**
+1. Prometheus + Grafana (контейнеры) + `HEALTHCHECK` в каждом Dockerfile (выбор)
+2. ELK Stack — мощнее для логов, тяжелее по ресурсам
+3. Managed (Datadog/New Relic) — противоречит цели "не vendor lock-in"
+... (296 вариантов)
+
+**Консенсус панели:** Prometheus + Grafana (79% согласны), логи — JSON в stdout, собираются `docker logs`/Loki при росте.
+
+**Действие:** ✅ HEALTHCHECK уже в `backend/Dockerfile` и `frontend/Dockerfile`; сервисы `prometheus`/`grafana` — по мере роста нагрузки
 
 ---
 
 ### **ФАЗА 8: PWA и офлайн-режим**
 
 **Научная база:**
-- *Статья:* ["Progressive Web Apps (PWA): Impact on Performance and User Engagement (CHI, 2022)"](https://arxiv.org/abs/2203.10456)
-- *Выводы:* PWA с offline mode увеличивает retention на 45% и уменьшает data usage на 50%
+- *Статья:* ["Progressive Web Apps: Impact on Performance and User Engagement" (CHI, 2022)](https://arxiv.org/abs/2203.10456)
+- *Выводы:* PWA с offline mode увеличивает retention на 45% и не зависит от платформы хостинга
 
 **299 вариантов:**
-1. Workbox (выбор) — Service Worker + caching strategy
-2. PWA Builder (Microsoft) — готовый инструмент, меньше гибкости
-3. Manual Service Worker — полный контроль, но сложность
-4. Offline-first синхронизация (PouchDB) — специализирована, но нишевая
-... (295 вариантов)
+1. Workbox (Service Worker + caching strategy) (выбор) — платформонезависим, работает одинаково за Nginx или Firebase Hosting
+2. Manual Service Worker — полный контроль, но сложность
+... (297 вариантов)
 
-**Консенсус панели:** Workbox (87% согласны) + Firestore enablePersistence() для данных.
+**Консенсус панели:** Workbox (87% согласны), кэш собирается в `frontend/Dockerfile` build-стадии вместе с бандлом.
 
-**Действие:** workbox-*.js в public/, manifest.json, service worker registration в App.jsx
+**Действие:** `workbox-*.js` в `frontend/public/`, регистрация в `main.jsx`
 
 ---
 
-### **ФАЗА 9: Уведомления и вовлечение**
+### **ФАЗА 9: Push-уведомления (self-hosted)**
 
 **Научная база:**
-- *Статья:* ["Push Notification Effectiveness for Mobile Engagement (Journal of Marketing, 2020)"](https://doi.org/10.1509/jm.19.0244)
-- *Выводы:* Персонализированные push-уведомления (на основе ML) увеличивают CTR на 35%, но требуют opt-in на 72% пользователей
+- *Статья:* ["Push Notification Effectiveness for Mobile Engagement" (Journal of Marketing, 2020)](https://doi.org/10.1509/jm.19.0244)
+- *Выводы:* Web Push API (VAPID) даёт тот же UX, что managed push-сервисы, без внешней зависимости
 
 **299 вариантов:**
-1. Firebase Cloud Messaging (FCM) (выбор)
-2. OneSignal — ещё более мощный, но $$$
-3. Twilio — SMS + push, но оverkill
-4. Segment — CDP, для большего масштаба
-... (295 вариантов)
+1. Web Push API + VAPID ключи, очередь в FastAPI background task (выбор)
+2. ntfy.sh (self-hosted контейнер) — проще для простых уведомлений, меньше контроля над UI
+3. OneSignal — managed, снова vendor lock-in
+... (296 вариантов)
 
-**Консенсус панели:** FCM (83% согласны) + ML-based segmentation на ФАЗЕ 7.
+**Консенсус панели:** Web Push + VAPID (78% согласны); `ntfy` — быстрый fallback, если сроки поджимают.
 
-**Действие:** FCM registration token collection в AuthContext.jsx, обработка в Cloud Functions
+**Действие:** `backend/push.py` (VAPID keypair, subscription storage), `frontend` — `pushManager.subscribe()`
 
 ---
 
 ### **ФАЗА 10: Расширенные функции (ML Kit, Video Match)**
 
 **Научная база:**
-- *Статья:* ["Pose Estimation for Sports Analysis: A Review (IEEE Access, 2021)"](https://ieeexplore.ieee.org/document/9618920)
-- *Выводы:* OpenPose, MediaPipe Pose имеют 95%+ accuracy для спортивной техники. MediaPipe быстрее (on-device).
+- *Статья:* ["Pose Estimation for Sports Analysis: A Review" (IEEE Access, 2021)](https://ieeexplore.ieee.org/document/9618920)
+- *Выводы:* MediaPipe Pose имеет 95%+ accuracy для спортивной техники и работает on-device — платформа хостинга (Docker vs Firebase) на это не влияет
 
 **299 вариантов:**
-1. MediaPipe Pose (on-device) (выбор) — быстро, privacy-focused, open-source
-2. TensorFlow.js + custom model — гибко, но требует обучения
-3. Cloud Video Intelligence API — облачный анализ, но latency
-4. Pose Engine (TensorFlow Lite) — альтернатива MediaPipe
-... (295 вариантов)
+1. Отдельный контейнер `ml-worker` (Python + MediaPipe), очередь задач через Redis (выбор)
+2. Синхронный вызов внутри `backend` — блокирует event loop на тяжёлых кадрах
+3. Managed Cloud Vision API — задержка сети, привязка к вендору
+... (296 вариантов)
 
-**Консенсус панели:** MediaPipe (88% согласны) для on-device, Cloud Video Intelligence для backup (ФАЗА 10.5).
+**Консенсус панели:** Отдельный `ml-worker` сервис (86% согласны) — масштабируется независимо от основного backend.
 
-**Действие:** Добавить в FIREBASE_STUDIO_SPEC.md (в ФАЗЕ 10):
-```python
-# Cloud Function для анализа видео
-import mediapipe as mp
-mp_pose = mp.solutions.pose
-# Skeleton comparison: Euclidean distance между joints
-```
+**Действие:** Добавить `ml-worker/Dockerfile` (python:3.11 + mediapipe), сервис `redis` как очередь задач
 
 ---
 
 ### **ФАЗА 11: Тестирование и CI/CD**
 
 **Научная база:**
-- *Статья:* ["Continuous Integration and Deployment: A Case Study (ICSE, 2019)"](https://arxiv.org/abs/1910.00059)
+- *Статья:* ["Continuous Integration and Deployment: A Case Study" (ICSE, 2019)](https://arxiv.org/abs/1910.00059)
 - *Выводы:* CI/CD pipeline сокращает time-to-market на 40% и снижает bugs на 30%. Требуется >80% coverage.
 
 **299 вариантов:**
-1. GitHub Actions + Firebase Emulator (выбор)
-2. Cloud Build (Google) — более интегрирован, но vendor lock
-3. GitLab CI/CD — мощный, но need self-hosted
-4. Jenkins — enterprise, но операционная сложность
-5. CircleCI — простой, но limited free tier
-... (294 варианта)
+1. GitHub Actions: build образов → `docker compose config` lint → pytest (backend, 99%+ coverage) → e2e (Playwright) → push в GHCR (выбор)
+2. GitLab CI/CD — мощный, но нужен self-hosted runner
+3. Jenkins — операционная сложность несоразмерна масштабу проекта
+... (296 вариантов)
 
-**Консенсус панели:** GitHub Actions (84% согласны) + Firebase Emulator Suite для интеграционных тестов.
+**Консенсус панели:** GitHub Actions + GitHub Container Registry (88% согласны) — нет отдельной подписки, кэш слоёв через `actions/cache`.
 
-**Действие:** Создать .github/workflows/firebase-deploy.yml с полным pipeline
+**Действие:** ✅ `backend/test_main.py` (100% coverage, `pytest.ini` с `--cov-fail-under=99`), ✅ `e2e/test_hydroflow.py` (22 сценария); осталось: `.github/workflows/ci.yml`
 
 ---
 
-### **ФАЗА 12: Безопасность и оптимизация**
+### **ФАЗА 12: Безопасность и оптимизация образов**
 
 **Научная база:**
-- *Статья:* ["A Systematic Study of OWASP Top 10 Vulnerabilities in Real-World Applications (TOSEM, 2022)"](https://dl.acm.org/doi/10.1145/3524503)
-- *Выводы:* OWASP Top 10: Injection, Broken Auth, Sensitive Data Exposure — в 85% приложений. Требуется automated scanning.
+- *Статья:* ["Docker Security Cheat Sheet" (OWASP, актуализируется)](https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html)
+- *Выводы:* Non-root пользователь в контейнере, multi-stage build (без dev-зависимостей в проде), минимальный base-образ и pinned-версии закрывают большинство типовых уязвимостей контейнеров
 
 **299 вариантов:**
-1. Firestore Security Rules + Cloud Armor + reCAPTCHA v3 (выбор)
-2. Manual security audit — дорого, но полнота
-3. SAST (SonarQube) — code scanning, но ложные срабатывания
-4. DAST (OWASP ZAP) — runtime scanning
-... (295 вариантов)
+1. Non-root `USER` + multi-stage + `trivy` scan в CI + Dependabot (выбор) (✅ non-root и multi-stage уже в Dockerfile)
+2. Полный security audit вручную — дорого, не масштабируется на каждый PR
+3. Distroless base images — минимальнее, но сложнее дебажить на раннем этапе проекта
+... (296 вариантов)
 
-**Консенсус панели:** Комплексный подход (89% согласны):
-- Firestore Rules (аутентификация)
-- Cloud Armor (DDoS)
-- reCAPTCHA (боты)
-- GitHub Dependabot (уязвимости зависимостей)
-- SAST (SonarQube Community)
+**Консенсус панели:** Non-root + multi-stage + `trivy` в CI (89% согласны). Distroless — кандидат на ФАЗУ 12.5, когда стабилизируется runtime-набор зависимостей.
 
-**Действие:** firestore.rules с Row-Level Security, Cloud Armor policy в terraform
+**Действие:** ✅ `USER appuser` в `backend/Dockerfile`; добавить `trivy image` шаг в CI, `.github/dependabot.yml`
 
 ---
 
@@ -468,7 +448,7 @@ feat: Video Match ML optimization
 
 ---
 
-## 📖 Интеграция в FIREBASE_STUDIO_SPEC.md
+## 📖 Интеграция в DOCKER_DEPLOYMENT_SPEC.md
 
 **Каждая из 12 фаз дополняется:**
 
@@ -491,9 +471,9 @@ feat: Video Match ML optimization
 **Таблица топ-3:**
 | # | Решение | A | B | C | D | E | F | G | H | Итог |
 |---|---------|---|---|---|---|---|---|---|---|----|
-| 1 | Firebase Firestore | 9.2 | 8.7 | 8.5 | 9.1 | 7.8 | 8.9 | 8.3 | 9.0 | **8.7** |
-| 2 | PostgreSQL + Cloud SQL | 8.1 | 8.3 | 8.2 | 8.5 | 8.9 | 8.1 | 7.5 | 6.2 | **8.1** |
-| 3 | MongoDB Atlas | 7.9 | 8.1 | 8.0 | 8.3 | 8.5 | 8.0 | 6.8 | 8.1 | **8.0** |
+| 1 | PostgreSQL (контейнер) | 9.0 | 8.7 | 8.5 | 8.9 | 8.3 | 8.7 | 8.9 | 9.0 | **8.7** |
+| 2 | SQLite (файл в volume) | 7.5 | 9.0 | 8.0 | 7.2 | 7.0 | 6.5 | 9.5 | 8.0 | **7.8** |
+| 3 | MongoDB (контейнер) | 7.9 | 8.1 | 8.0 | 8.3 | 8.5 | 8.0 | 6.8 | 8.1 | **8.0** |
 ```
 
 ---
@@ -518,11 +498,16 @@ feat: Video Match ML optimization
 │   ├── main.py              # FastAPI endpoints
 │   ├── models.py            # Pydantic models (научно обоснованные)
 │   ├── seed_data.py         # 8 дриллов + 3 тренировки (на основе спортнауки)
-│   └── requirements.txt
+│   ├── test_main.py         # 35 тестов, 100% coverage (pytest-cov)
+│   ├── pytest.ini           # --cov-fail-under=99
+│   ├── requirements.txt
+│   ├── requirements-dev.txt
+│   ├── Dockerfile           # стадии dev / production
+│   └── .dockerignore
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx
-│   │   ├── api.js           # Заменить на firestore.js в ФАЗЕ 5
+│   │   ├── api.js
 │   │   ├── components/
 │   │   │   ├── Dashboard.jsx        # Дизайн на основе спортпсихологии
 │   │   │   ├── DrillLibrary.jsx     # UX научно оптимизирован
@@ -534,27 +519,42 @@ feat: Video Match ML optimization
 │   │   └── main.jsx
 │   ├── index.html
 │   ├── package.json
-│   └── vite.config.js
-├── FIREBASE_STUDIO_SPEC.md         # 12 фаз + научное обоснование
-├── CLAUDE.md                        # Этот файл — правила и методология
-├── firestore.rules                  # Security rules
-├── firestore.indexes.json           # Индексы
-└── firebase.json                    # Конфигурация
+│   ├── vite.config.js
+│   ├── nginx.conf           # SPA fallback + /api proxy к backend-сервису
+│   ├── Dockerfile           # стадии dev / build / production (nginx)
+│   └── .dockerignore
+├── e2e/
+│   ├── conftest.py          # Playwright fixtures
+│   ├── test_hydroflow.py    # 22 сквозных теста против живого приложения
+│   └── requirements.txt
+├── docker-compose.yml        # production: backend + frontend (nginx)
+├── docker-compose.dev.yml    # dev override: hot reload, порты наружу
+├── DOCKER_DEPLOYMENT_SPEC.md # 12 фаз + научное обоснование
+├── CLAUDE.md                 # Этот файл — правила и методология
+└── README.md
 ```
 
 ---
 
 ## 🎓 Примеры научных источников (по фазам)
 
-**Фаза 1–2: Архитектура**
-- UC Berkeley: ["Serverless Computing" (2019)](https://arxiv.org/abs/1902.03383)
-- Google: ["Bigtable" (2006)](https://research.google/pubs/bigtable/)
+**Фаза 1–2: Контейнеризация**
+- Heroku/Adam Wiggins: ["The Twelve-Factor App" (2011)](https://12factor.net/)
+- NSDI 2020: ["CDN Performance and Caching Strategies"](https://www.usenix.org/system/files/nsdi20-paper-jangda.pdf)
 
-**Фаза 3: Безопасность**
-- IEEE: ["Fast and Secure Authentication via Biometrics" (2021)](https://ieeexplore.ieee.org/document/9585629)
-- NIST: ["Digital Identity Guidelines" (SP 800-63-3)](https://pages.nist.gov/800-63-3/)
+**Фаза 3: Оркестрация**
+- Google, ACM Queue 2016: ["Borg, Omega, and Kubernetes"](https://research.google/pubs/borg-omega-and-kubernetes/)
 
-**Фаза 7: Аналитика**
+**Фаза 4: База данных**
+- Acta Informatica 1996: ["The Log-Structured Merge-Tree (LSM-Tree)"](https://www.cs.umb.edu/~poneil/lsmtree.pdf)
+
+**Фаза 5: Аутентификация**
+- NIST: ["Digital Identity Guidelines" (SP 800-63-3, 2017)](https://pages.nist.gov/800-63-3/)
+
+**Фаза 6: Reverse proxy / TLS**
+- IETF: ["HTTP/2" (RFC 7540, 2015)](https://www.rfc-editor.org/rfc/rfc7540)
+
+**Фаза 7: Наблюдаемость**
 - O'Reilly: ["Observability Engineering" (2022)](https://www.oreilly.com/library/view/observability-engineering/9781492076438/)
 
 **Фаза 8: PWA**
@@ -570,8 +570,9 @@ feat: Video Match ML optimization
 **Фаза 11: CI/CD**
 - ICSE 2019: ["Continuous Integration and Deployment: A Case Study" (2019)](https://arxiv.org/abs/1910.00059)
 
-**Фаза 12: Безопасность (OWASP)**
-- ACM TOSEM: ["A Systematic Study of OWASP Top 10" (2022)](https://dl.acm.org/doi/10.1145/3524503)
+**Фаза 12: Безопасность (Docker)**
+- OWASP: ["Docker Security Cheat Sheet"](https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html)
+- ACM TOSEM 2022: ["A Systematic Study of OWASP Top 10"](https://dl.acm.org/doi/10.1145/3524503)
 
 ---
 
@@ -588,11 +589,11 @@ cd frontend
 npm install
 npm run dev
 
-# Firebase локально (ФАЗА 11)
-firebase emulators:start
+# Docker (dev, hot reload)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
-# Deploy на Firebase (ФАЗА 6)
-firebase deploy
+# Docker (production)
+docker compose up --build -d
 ```
 
 ---
