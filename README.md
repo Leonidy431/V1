@@ -113,8 +113,12 @@ docker compose up --build -d
 │   ├── main.py                       # REST API endpoints
 │   ├── models.py                     # Pydantic модели
 │   ├── seed_data.py                  # 8 дриллов + 3 тренировки (на основе спортнауки)
-│   ├── test_main.py                  # 35 тестов, 100% coverage
-│   ├── pytest.ini                    # --cov-fail-under=99
+│   ├── ai_coach.py                   # AI Coach: локальная Llama через Ollama
+│   ├── project_tasks.py              # Индекс задач проекта (PEP8)
+│   ├── test_main.py                  # unit-тесты API
+│   ├── test_ai_coach.py              # unit-тесты AI Coach (httpx.MockTransport)
+│   ├── test_project_tasks.py         # unit-тесты индекса задач
+│   ├── pytest.ini                    # --cov-fail-under=99, 100% coverage
 │   ├── requirements.txt
 │   ├── requirements-dev.txt
 │   ├── Dockerfile                    # стадии dev / production
@@ -187,7 +191,57 @@ docker compose up --build -d
                                             │  db (postgres:16)        │
                                             │  именованный volume      │
                                             └──────────────────────────┘
+
+                                            backend также обращается наружу
+                                            контейнера, на хост-машину:
+                                                       │
+                                                       ↓ host.docker.internal:11434
+                                            ┌──────────────────────────┐
+                                            │  Ollama (bare process,   │
+                                            │  НЕ в Docker)            │
+                                            │  → backend/ai_coach.py   │
+                                            └──────────────────────────┘
 ```
+
+---
+
+## 🤖 AI Coach (Llama через Ollama)
+
+Короткие персонализированные советы перед тренировкой генерирует локальная LLM —
+без внешнего API и без vendor lock-in (см. ФАЗУ 10.1 в `DOCKER_DEPLOYMENT_SPEC.md`).
+
+- **Backend:** `backend/ai_coach.py` — HTTP-клиент к Ollama (`GET /api/coach/tip`,
+  `GET /api/coach/status`). Если Ollama недоступна — тихий fallback на статичный
+  совет, приложение не ломается.
+- **Frontend:** карточка "ИИ-тренер" на Dashboard, кнопка "Получить совет".
+- **Развёртывание:** Ollama работает как обычный процесс на хост-машине (не в
+  Docker) — контейнер backend достаёт до неё через `host.docker.internal`.
+
+### Запуск Ollama локально
+
+```bash
+# Установить Ollama (на хосте, не в контейнере)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Скачать модель и запустить сервер
+ollama pull llama3.2
+ollama serve &
+
+# Backend подхватит её автоматически на http://localhost:11434
+cd backend && uvicorn main:app --reload
+
+# Проверка
+curl http://localhost:8000/api/coach/status   # {"available": true}
+curl http://localhost:8000/api/coach/tip
+```
+
+Переменные окружения (опционально): `OLLAMA_HOST` (по умолчанию
+`http://localhost:11434`), `OLLAMA_MODEL` (по умолчанию `llama3.2`).
+
+> ⚠️ В песочнице, где разрабатывался этот код, `ollama.com` заблокирован сетевой
+> политикой сессии — интеграция протестирована только через `httpx.MockTransport`
+> (`backend/test_ai_coach.py`). Живую проверку с реальной моделью нужно сделать
+> на машине с обычным доступом в интернет.
 
 ---
 
@@ -302,17 +356,18 @@ mastery_pct = (videos_watched × 10 + drills_completed × 5) % 100
 
 ### Backend — unit-тесты (pytest + coverage)
 
-35 тестов, покрывающих все endpoints, включая граничные случаи (404, cap мастерства на 100%, создание отсутствующей записи мастерства, ротацию `/api/today`, монтирование статики). Порог покрытия закреплён в `backend/pytest.ini` (`--cov-fail-under=99`).
+60 тестов, покрывающих все endpoints (включая AI Coach через `httpx.MockTransport`) и задачный индекс, плюс граничные случаи (404, cap мастерства на 100%, создание отсутствующей записи мастерства, ротацию `/api/today`, монтирование статики). Код проверен `pycodestyle` (PEP8, 0 замечаний). Порог покрытия закреплён в `backend/pytest.ini` (`--cov-fail-under=99`).
 
 ```bash
 cd backend
 pip install -r requirements-dev.txt
-pytest                         # 100% line coverage на main.py / models.py / seed_data.py
+pytest                         # 100% line coverage: main/models/seed_data/ai_coach/project_tasks
+pycodestyle --max-line-length=99 *.py   # PEP8-проверка
 ```
 
 ### E2E — сквозные тесты (Playwright)
 
-22 теста, проверяющих реальное поведение в браузере: фильтры дриллов/тренировок, YouTube-оверлей, полный цикл Land/Water Mode, локализацию (Сет X из Y, а не Set X of Y), отсутствие console errors на всех экранах.
+23 теста, проверяющих реальное поведение в браузере: фильтры дриллов/тренировок, YouTube-оверлей, полный цикл Land/Water Mode, локализацию (Сет X из Y, а не Set X of Y), карточку ИИ-тренера, отсутствие console errors на всех экранах.
 
 ```bash
 # 1. Запустить dev-серверы (в отдельных терминалах)
@@ -430,9 +485,20 @@ Final score: 8.7/10 (top-1 out of 299 solutions)
 | 🟡 7 | Наблюдаемость | Health checks готовы | Sep 2026 |
 | 8 | PWA + Offline | TODO | Oct 2026 |
 | 9 | Push Notifications | TODO | Oct 2026 |
-| 10 | Video Match ML | TODO | Nov 2026 |
-| 🟡 11 | Тестирование и CI/CD | Тесты готовы (100% coverage + 22 e2e), workflow-файл — нет | Nov 2026 |
+| 🟡 10 | Video Match ML / AI Coach | AI Coach готов (не проверен живым Ollama), Video Match — TODO | Nov 2026 |
+| 🟡 11 | Тестирование и CI/CD | Тесты готовы (100% coverage + 23 e2e), workflow-файл — нет | Nov 2026 |
 | 🟡 12 | Безопасность образов | Non-root + multi-stage готовы, сканирование — нет | Dec 2026 |
+
+### Индекс задач
+
+Машиночитаемый бэклог живёт в `backend/project_tasks.py` (PEP8, dataclasses,
+проверен pytest + pycodestyle). Таблица выше — снимок по фазам; для полного
+списка с приоритетами и статусами:
+
+```bash
+cd backend
+python project_tasks.py
+```
 
 ---
 

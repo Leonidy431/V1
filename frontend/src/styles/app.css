@@ -1709,3 +1709,57 @@ img { max-width: 100%; display: block; }
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.04);
 }
+
+/* ----------------------------------------------------------
+   17. AI Coach (Llama)
+   ---------------------------------------------------------- */
+.coach-card {
+  background: var(--bg-card);
+  border: 1px solid rgba(34, 211, 238, 0.08);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.coach-card h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.coach-tip,
+.coach-tip-placeholder {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+
+.coach-tip-placeholder {
+  color: var(--text-muted);
+}
+
+.coach-tip-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.coach-tip-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--accent-glow);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  transition: background var(--transition), opacity var(--transition);
+}
+
+.coach-tip-btn:hover:not(:disabled) {
+  background: rgba(34, 211, 238, 0.25);
+}
+
+.coach-tip-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

@@ -215,9 +215,10 @@ def test_today_suggestion_falls_back_when_no_matching_level(client):
 
 
 def test_today_suggestion_rotates_through_history(client):
-    client.post("/api/user/complete-workout", json={"workout_id": "workout-01", "completed_sets": []})
+    payload = {"workout_id": "workout-01", "completed_sets": []}
+    client.post("/api/user/complete-workout", json=payload)
     resp1 = client.get("/api/today")
-    client.post("/api/user/complete-workout", json={"workout_id": "workout-01", "completed_sets": []})
+    client.post("/api/user/complete-workout", json=payload)
     resp2 = client.get("/api/today")
     # only one novice workout exists, so history_len % 1 always selects it
     assert resp1.json()["workout"]["id"] == resp2.json()["workout"]["id"] == "workout-01"
@@ -242,3 +243,43 @@ def test_frontend_dist_mounted_when_present():
     finally:
         shutil.rmtree(dist_dir)
         importlib.reload(main_module)
+
+
+# ---------- AI Coach (Llama, mocked — no real Ollama in CI) ----------
+
+def test_coach_tip_returns_generated_tip(client, monkeypatch):
+    monkeypatch.setattr(
+        main_module.ai_coach,
+        "generate_tip",
+        lambda focus, level: {"tip": "Дыши ровнее", "source": "llama"},
+    )
+    resp = client.get("/api/coach/tip")
+    assert resp.status_code == 200
+    assert resp.json() == {"tip": "Дыши ровнее", "source": "llama"}
+
+
+def test_coach_tip_uses_today_workout_focus_and_user_level(client, monkeypatch):
+    captured = {}
+
+    def fake_generate_tip(focus, level):
+        captured["focus"] = focus
+        captured["level"] = level
+        return {"tip": "ok", "source": "fallback"}
+
+    monkeypatch.setattr(main_module.ai_coach, "generate_tip", fake_generate_tip)
+    client.get("/api/coach/tip")
+    assert captured["level"] == "novice"
+    assert captured["focus"]
+
+
+def test_coach_status_reports_available(client, monkeypatch):
+    monkeypatch.setattr(main_module.ai_coach, "is_available", lambda: True)
+    resp = client.get("/api/coach/status")
+    assert resp.status_code == 200
+    assert resp.json() == {"available": True}
+
+
+def test_coach_status_reports_unavailable(client, monkeypatch):
+    monkeypatch.setattr(main_module.ai_coach, "is_available", lambda: False)
+    resp = client.get("/api/coach/status")
+    assert resp.json() == {"available": False}

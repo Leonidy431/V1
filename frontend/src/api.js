@@ -27,4 +27,5 @@ export const api = {
         completed_sets: completedSets,
       }),
     }),
+  getCoachTip: () => request("/coach/tip"),
 };

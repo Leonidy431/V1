@@ -6,6 +6,8 @@ export default function Dashboard({ onStartWorkout, onNavigate }) {
   const [user, setUser] = useState(null);
   const [drills, setDrills] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [coachTip, setCoachTip] = useState(null);
+  const [coachLoading, setCoachLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +38,19 @@ export default function Dashboard({ onStartWorkout, onNavigate }) {
       cancelled = true;
     };
   }, []);
+
+  async function handleGetCoachTip() {
+    setCoachLoading(true);
+    try {
+      const result = await api.getCoachTip();
+      setCoachTip(result);
+    } catch (err) {
+      console.error("Coach tip fetch error:", err);
+      setCoachTip({ tip: "Не удалось получить совет. Попробуй позже.", source: "error" });
+    } finally {
+      setCoachLoading(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -119,6 +134,30 @@ export default function Dashboard({ onStartWorkout, onNavigate }) {
           <span className="stat-value">{levelLabel}</span>
           <span className="stat-label">Уровень</span>
         </div>
+      </div>
+
+      {/* AI Coach */}
+      <div className="coach-card">
+        <h3>ИИ-тренер</h3>
+        {coachTip ? (
+          <p className="coach-tip">
+            {coachTip.tip}
+            {coachTip.source === "fallback" && (
+              <span className="coach-tip-note"> (Llama недоступна, стандартный совет)</span>
+            )}
+          </p>
+        ) : (
+          <p className="coach-tip-placeholder">
+            Получи короткий совет от локальной ИИ-модели перед тренировкой.
+          </p>
+        )}
+        <button
+          className="coach-tip-btn"
+          onClick={handleGetCoachTip}
+          disabled={coachLoading}
+        >
+          {coachLoading ? "Думаю..." : "Получить совет"}
+        </button>
       </div>
 
       {/* Quick Mastery Overview */}

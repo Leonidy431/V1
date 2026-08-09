@@ -43,6 +43,15 @@ def test_dashboard_start_dive_navigates_to_player(hydroflow_page):
     assert hydroflow_page.locator(".workout-player").count() == 1
 
 
+def test_dashboard_ai_coach_returns_a_tip(hydroflow_page):
+    page = hydroflow_page
+    assert page.locator(".coach-card").count() == 1
+    page.locator(".coach-tip-btn").click()
+    page.wait_for_timeout(1000)
+    tip_text = page.locator(".coach-tip").inner_text()
+    assert tip_text.strip() != ""
+
+
 # ---------- Drill Library ----------
 
 def test_drills_category_filters_match_seed_data(nav):

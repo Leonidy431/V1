@@ -119,7 +119,10 @@ WORKOUTS: list[Workout] = [
             WorkoutSet(drill_id="drill-07", distance_m=50, rest_seconds=20, repetitions=4),
             WorkoutSet(drill_id="drill-01", distance_m=50, rest_seconds=20, repetitions=4),
             WorkoutSet(drill_id="drill-02", distance_m=50, rest_seconds=20, repetitions=4),
-            WorkoutSet(drill_id="drill-05", distance_m=100, rest_seconds=30, repetitions=2, equipment="доска"),
+            WorkoutSet(
+                drill_id="drill-05", distance_m=100, rest_seconds=30,
+                repetitions=2, equipment="доска",
+            ),
             WorkoutSet(drill_id="drill-03", distance_m=100, rest_seconds=30, repetitions=3),
             WorkoutSet(drill_id="drill-08", distance_m=200, rest_seconds=0),
         ],
@@ -133,7 +136,10 @@ WORKOUTS: list[Workout] = [
         sets=[
             WorkoutSet(drill_id="drill-04", distance_m=0, rest_seconds=60),
             WorkoutSet(drill_id="drill-07", distance_m=50, rest_seconds=15, repetitions=6),
-            WorkoutSet(drill_id="drill-05", distance_m=100, rest_seconds=20, repetitions=4, equipment="доска"),
+            WorkoutSet(
+                drill_id="drill-05", distance_m=100, rest_seconds=20,
+                repetitions=4, equipment="доска",
+            ),
             WorkoutSet(drill_id="drill-06", distance_m=0, rest_seconds=30, repetitions=6),
             WorkoutSet(drill_id="drill-02", distance_m=100, rest_seconds=20, repetitions=4),
             WorkoutSet(drill_id="drill-01", distance_m=100, rest_seconds=20, repetitions=4),

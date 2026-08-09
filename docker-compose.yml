@@ -4,6 +4,12 @@ services:
       context: ./backend
       target: production
     restart: unless-stopped
+    # Llama runs as a bare process on the host (not in Docker), reachable
+    # via host.docker.internal — see DOCKER_DEPLOYMENT_SPEC.md phase 10.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/drills')"]
       interval: 30s

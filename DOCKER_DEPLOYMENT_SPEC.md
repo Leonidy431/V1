@@ -22,6 +22,7 @@
 8. [ФАЗА 8: PWA и офлайн-режим](#фаза-8-pwa-и-офлайн-режим)
 9. [ФАЗА 9: Push-уведомления](#фаза-9-push-уведомления)
 10. [ФАЗА 10: Video Match (ML)](#фаза-10-video-match-ml)
+    - [ФАЗА 10.1: AI Coach (локальная Llama через Ollama)](#фаза-101-ai-coach-локальная-llama-через-ollama)
 11. [ФАЗА 11: Тестирование и CI/CD](#фаза-11-тестирование-и-cicd)
 12. [ФАЗА 12: Безопасность и оптимизация](#фаза-12-безопасность-и-оптимизация)
 
@@ -374,6 +375,70 @@ services:
 
 ---
 
+## ФАЗА 10.1: AI Coach (локальная Llama через Ollama)
+
+### Описание
+Короткая (1–2 предложения) персонализированная подсказка перед тренировкой,
+сгенерированная локальной LLM — без внешнего API-вендора и без исходящего
+интернета с боевой машины. Ollama установлена и работает как **обычный
+процесс на хосте**, не в Docker: GPU passthrough в контейнер на self-hosted
+VPS без выделенной GPU-инфраструктуры не даёт выигрыша, а bare-process
+на хосте — самый простой путь к первой версии фичи.
+
+### Научное обоснование
+- *Статья:* ["LLaMA: Open and Efficient Foundation Language Models" (Meta AI, 2023)](https://arxiv.org/abs/2302.13971)
+- *Выводы:* Компактные open-weight модели (7B–8B) достаточны для коротких
+  генеративных подсказок на потребительском CPU/GPU, без необходимости в
+  managed inference API
+
+### Конкретные шаги
+1. Установить Ollama на хост-машину (не в контейнер): `curl -fsSL https://ollama.com/install.sh | sh`.
+2. Скачать модель: `ollama pull llama3.2`, запустить `ollama serve` (слушает `:11434`).
+3. `backend/ai_coach.py` — HTTP-клиент (`httpx`) к `POST /api/generate` Ollama;
+   таймаут 8с; любая ошибка (недоступность, timeout, невалидный JSON) →
+   статичный `FALLBACK_TIP`, без исключения наружу.
+4. Эндпоинты `GET /api/coach/tip` (сгенерировать совет под текущий фокус
+   тренировки и уровень пользователя) и `GET /api/coach/status` (доступна ли
+   Ollama).
+5. В `docker-compose.yml`/`docker-compose.dev.yml`: `extra_hosts:
+   host.docker.internal:host-gateway` + `OLLAMA_HOST=http://host.docker.internal:11434`,
+   чтобы backend-контейнер видел процесс на хосте.
+6. Frontend: карточка "ИИ-тренер" на Dashboard, ленивая загрузка по клику
+   (не блокирует загрузку главного экрана).
+
+```python
+# backend/ai_coach.py — упрощённо
+def generate_tip(focus: str, level: str) -> dict:
+    try:
+        response = httpx.post(
+            f"{OLLAMA_HOST}/api/generate",
+            json={"model": OLLAMA_MODEL, "prompt": build_prompt(focus, level), "stream": False},
+            timeout=8.0,
+        )
+        response.raise_for_status()
+        text = response.json().get("response", "").strip()
+        return {"tip": text, "source": "llama"} if text else {"tip": FALLBACK_TIP, "source": "fallback"}
+    except (httpx.HTTPError, ValueError, KeyError):
+        return {"tip": FALLBACK_TIP, "source": "fallback"}
+```
+
+### Критерии завершения
+- ✅ `backend/ai_coach.py` + 2 эндпоинта реализованы
+- ✅ `backend/test_ai_coach.py` — 11 тестов через `httpx.MockTransport` (успех,
+  пустой ответ, HTTP-ошибка, обрыв соединения, невалидный JSON), 100% coverage
+- ✅ Dashboard-карточка "ИИ-тренер", e2e-тест кликает кнопку и проверяет непустой ответ
+- ✅ `docker-compose*.yml` пробрасывают `host.docker.internal`
+- ⛔ **Не проверено:** живой ответ от реально запущенной Ollama-модели —
+  `ollama.com` заблокирован сетевой политикой той песочницы, где писался этот
+  код (403 на `CONNECT`, как и для Docker Hub в ФАЗЕ 1). Нужно прогнать
+  `curl http://localhost:8000/api/coach/tip` на машине с установленной и
+  запущенной Ollama и подтвердить `"source": "llama"` в ответе.
+
+### Оценка времени
+1 день (сделано) + 0.5 дня на живую проверку на реальной машине
+
+---
+
 ## ФАЗА 11: Тестирование и CI/CD
 
 ### Описание
@@ -475,5 +540,6 @@ jobs:
 | 8 | PWA / офлайн | ⬜ Не начато |
 | 9 | Push-уведомления | ⬜ Не начато |
 | 10 | Video Match (ML) | ⬜ Не начато |
-| 11 | Тестирование и CI/CD | 🟡 Тесты готовы (100% coverage backend, 22 e2e), workflow-файл — нет |
+| 10.1 | AI Coach (Llama/Ollama) | 🟡 Код + mock-тесты готовы, живая проверка на реальной Ollama — нет |
+| 11 | Тестирование и CI/CD | 🟡 Тесты готовы (100% coverage backend, 23 e2e), workflow-файл — нет |
 | 12 | Безопасность образов | 🟡 Non-root + multi-stage готовы, сканирование — нет |

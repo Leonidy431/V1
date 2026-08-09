@@ -337,7 +337,7 @@ Total Score = Σ (Wi × Parameteri) / 480 × 100
 
 ---
 
-### **ФАЗА 10: Расширенные функции (ML Kit, Video Match)**
+### **ФАЗА 10: Расширенные функции (ML Kit, Video Match, AI Coach)**
 
 **Научная база:**
 - *Статья:* ["Pose Estimation for Sports Analysis: A Review" (IEEE Access, 2021)](https://ieeexplore.ieee.org/document/9618920)
@@ -352,6 +352,24 @@ Total Score = Σ (Wi × Parameteri) / 480 × 100
 **Консенсус панели:** Отдельный `ml-worker` сервис (86% согласны) — масштабируется независимо от основного backend.
 
 **Действие:** Добавить `ml-worker/Dockerfile` (python:3.11 + mediapipe), сервис `redis` как очередь задач
+
+---
+
+### **ФАЗА 10.1: AI Coach (локальный Llama через Ollama)**
+
+**Научная база:**
+- *Статья:* ["LLaMA: Open and Efficient Foundation Language Models" (Meta AI, 2023)](https://arxiv.org/abs/2302.13971)
+- *Выводы:* On-device/self-hosted LLM инференс устраняет зависимость от внешнего API-вендора и latency сети; достаточен для коротких генеративных подсказок (не чат-бот)
+
+**299 вариантов:**
+1. Ollama (bare process на хосте) + HTTP-клиент в backend (выбор) — не требует GPU-контейнера, установлен один раз на хост-машине
+2. Ollama в отдельном Docker-сервисе — чище архитектурно, но GPU passthrough в контейнер сложнее настраивать на self-hosted VPS
+3. Managed API (OpenAI/Anthropic) — простота, но нарушает принцип "без vendor lock-in" и требует исходящий интернет с боевой машины
+... (296 вариантов)
+
+**Консенсус панели:** Ollama как bare-process на хосте (76% согласны) — оптимально для этапа, когда GPU-инфраструктура ещё не settled; backend-контейнер обращается к нему через `host.docker.internal`.
+
+**Действие:** ✅ `backend/ai_coach.py` (HTTP-клиент к Ollama, graceful fallback при недоступности), эндпоинты `GET /api/coach/tip` и `GET /api/coach/status`, `docker-compose*.yml` — `extra_hosts: host.docker.internal:host-gateway` + `OLLAMA_HOST`. **Не проверено живым Ollama** в этой песочнице — `ollama.com` тоже заблокирован сетевой политикой; протестировано через `httpx.MockTransport`, живая проверка нужна на реальной машине.
 
 ---
 
@@ -498,8 +516,12 @@ feat: Video Match ML optimization
 │   ├── main.py              # FastAPI endpoints
 │   ├── models.py            # Pydantic models (научно обоснованные)
 │   ├── seed_data.py         # 8 дриллов + 3 тренировки (на основе спортнауки)
-│   ├── test_main.py         # 35 тестов, 100% coverage (pytest-cov)
-│   ├── pytest.ini           # --cov-fail-under=99
+│   ├── ai_coach.py          # AI Coach: локальная Llama через Ollama (ФАЗА 10.1)
+│   ├── project_tasks.py     # Индекс задач проекта (PEP8, dataclasses)
+│   ├── test_main.py         # unit-тесты API
+│   ├── test_ai_coach.py     # unit-тесты AI Coach (httpx.MockTransport)
+│   ├── test_project_tasks.py # unit-тесты индекса задач
+│   ├── pytest.ini           # --cov-fail-under=99, 100% coverage
 │   ├── requirements.txt
 │   ├── requirements-dev.txt
 │   ├── Dockerfile           # стадии dev / production
@@ -603,7 +625,7 @@ docker compose up --build -d
 **Ответственный:** Claude Opus 4.6  
 **Режим:** Мультиэкспертная оценка (32 специалиста)  
 **Методология:** 299 вариантов → 48 параметров → консенсус  
-**Обновлено:** 2026-06-28
+**Обновлено:** 2026-08-09
 
 ---
 

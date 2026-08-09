@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+import ai_coach
 from models import DrillCategory, DrillMastery, UserLevel, WorkoutLog
 from seed_data import DEFAULT_USER, DRILLS, WORKOUTS
 
@@ -116,6 +117,18 @@ def today_suggestion():
         "message": f"Сегодня работаем над: {workout.focus}",
         "workout": workout,
     }
+
+
+@app.get("/api/coach/tip")
+def coach_tip():
+    suggestion = today_suggestion()
+    workout = suggestion["workout"]
+    return ai_coach.generate_tip(focus=workout.focus, level=user_db.level.value)
+
+
+@app.get("/api/coach/status")
+def coach_status():
+    return {"available": ai_coach.is_available()}
 
 
 frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
